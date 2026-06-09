@@ -359,6 +359,12 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div id="intakeNvh"></div>
   </div>
 
+  <!-- エアコンの詳細（条件付き表示） -->
+  <div id="intakeAcSection" style="margin-top:1rem; display:none;">
+    <div class="sec-header"><div class="num">❄️</div><h3>エアコンの詳細</h3></div>
+    <div id="intakeAc"></div>
+  </div>
+
   <div class="nav-bar" style="margin-top:1.5rem">
     <button class="btn btn-secondary" onclick="go('s_complaint')">← 戻る</button>
     <button class="btn btn-primary" style="flex:1" onclick="goNextFromIntake()">次へ →</button>
@@ -457,7 +463,7 @@ const INTAKE_CONDITION = [
   { id:'i_road', label:'どのような道路（路面）で発生しますか？（複数可）', type:'checkbox', required:false,
     options:['平らできれいな道（アスファルト舗装路）','デコボコした道（マンホールや舗装のつなぎ目など）','荒れた道（砂利道やデコボコ道など）','関係ない/わからない'] },
   { id:'i_symptom_type', label:'気になっている症状はどれですか？（複数可）', type:'checkbox', required:true,
-    options:['異音がする','振動がある','エンジンの調子が悪い','メーターに警告やメッセージが出た','走行中に違和感がある','電装品（エアコン・ライト・ナビ等）の不具合','その他'] },
+    options:['異音がする','振動がある','エンジンの調子が悪い','メーターに警告やメッセージが出た','走行中に違和感がある','エアコンが効かない・不具合がある','電装品（ライト・ナビ・窓等）の不具合','その他'] },
   { id:'i_speed', label:'どのくらいのスピード（車速）で発生しますか？（複数可）', type:'checkbox', required:false,
     options:['車が止まっているとき','ゆっくり走っているとき（〜30km/h以下）','普通の速さで走っているとき（30〜60km/h）','速いスピードで走っているとき（60km/h以上）','どのスピードでも発生する','わからない'] },
   { id:'i_engine_temp', label:'エンジンの温まり具合はどうでしたか？（複数可）', type:'checkbox', required:false,
@@ -497,6 +503,19 @@ const INTAKE_DETAIL = [
     options:['点灯したことはない','点灯していたが今は消えている','今も常に点灯している','チカチカ点滅していた/している','複数の警告灯が同時についていた/いる','わからない'] },
   { id:'i_meter_message', label:'メーターやディスプレイに普段見かけないメッセージや記号（マーク）が表示されたことはありましたか？（複数可）', type:'checkbox', required:false,
     options:['文章（メッセージ）が表示された','記号やマークが表示された','文章と記号の両方が表示された','表示されたことはない','わからない／覚えていない'] },
+  { id:'i_ac_type', label:'エアコンの症状はどのような状態ですか？（複数可）', type:'checkbox', required:false,
+    options:[
+      '「冷房」が効かない（冷たい風が出ない）',
+      '「暖房」が効かない（温かい風が出ない）',
+      '冷房・暖房ともに効かない',
+      '風自体が全く出ない',
+      '風は出るが、風量が弱い',
+      '風がカビ臭い、または異臭がする',
+      'その他（具体的に教えてください）'
+    ],
+    showIf: 'ac' },
+  { id:'i_ac_detail', label:'エアコンの不具合について、その他気になることがあれば記入してください', type:'text', required:false,
+    showIf: 'ac' },
   { id:'i_trend', label:'症状は変化していますか？', type:'radio', required:false,
     options:['だんだんひどくなっている','変わらない','良くなっている','日によって（または乗る人によって）違う','わからない'] },
 ];
@@ -709,8 +728,9 @@ function renderIntake() {
   renderQGroup('intakeBasic', INTAKE_BASIC, 'intake');
   renderQGroup('intakeCondition', INTAKE_CONDITION, 'intake');
   renderQGroup('intakeDetail', INTAKE_DETAIL.filter(q => !q.showIf), 'intake');
-  // NVH質問は最初は非表示、症状選択後に表示
+  // NVH・エアコンの条件付き質問の表示更新
   updateNvhQuestions();
+  updateAcQuestions();
 }
 
 function updateNvhQuestions() {
@@ -732,6 +752,48 @@ function updateNvhQuestions() {
     nvhSection.style.display = 'none';
     // NVH質問の回答をクリア
     INTAKE_DETAIL.filter(q => q.showIf === 'nvh').forEach(q => delete intakeAnswers[q.id]);
+  }
+}
+
+function updateAcQuestions() {
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  const hasAc = Array.isArray(symptoms)
+    ? symptoms.some(s => s.includes('エアコン'))
+    : symptoms.includes('エアコン');
+
+  const acContainer = document.getElementById('intakeAc');
+  const acSection = document.getElementById('intakeAcSection');
+  if (!acContainer || !acSection) return;
+
+  if (hasAc) {
+    const acQs = INTAKE_DETAIL.filter(q => q.showIf === 'ac');
+    acContainer.innerHTML = acQs.map(q => renderQ(q, 'intake')).join('');
+    acSection.style.display = 'block';
+    updateAcDetailVisibility();
+  } else {
+    acContainer.innerHTML = '';
+    acSection.style.display = 'none';
+    // エアコン質問の回答をクリア
+    INTAKE_DETAIL.filter(q => q.showIf === 'ac').forEach(q => delete intakeAnswers[q.id]);
+  }
+}
+
+function updateAcDetailVisibility() {
+  const acTypeVal = intakeAnswers['i_ac_type'] || [];
+  const showOther = Array.isArray(acTypeVal)
+    ? acTypeVal.includes('その他（具体的に教えてください）')
+    : acTypeVal === 'その他（具体的に教えてください）';
+
+  const detailEl = document.getElementById('qc_i_ac_detail');
+  if (detailEl) {
+    if (showOther) {
+      detailEl.style.display = 'block';
+    } else {
+      detailEl.style.display = 'none';
+      delete intakeAnswers['i_ac_detail'];
+      const ta = document.getElementById('ta_i_ac_detail');
+      if (ta) ta.value = '';
+    }
   }
 }
 
@@ -766,26 +828,41 @@ function renderQ(q, prefix) {
 // 共通問診の回答セット
 function intakeSet(id, val) { 
   intakeAnswers[id] = val; 
-  if (id === 'i_symptom_type') updateNvhQuestions();
+  if (id === 'i_symptom_type') {
+    updateNvhQuestions();
+    updateAcQuestions();
+  }
 }
 function intakeSetCb(id) {
   const chk = document.querySelectorAll(`input[name="${id}"]:checked`);
   intakeAnswers[id] = Array.from(chk).map(c=>c.value);
   if (!intakeAnswers[id].length) delete intakeAnswers[id];
-  if (id === 'i_symptom_type') updateNvhQuestions();
+  if (id === 'i_symptom_type') {
+    updateNvhQuestions();
+    updateAcQuestions();
+  }
+  if (id === 'i_ac_type') {
+    updateAcDetailVisibility();
+  }
 }
 
 // ── 共通問診 → 次の画面への遷移ロジック ──
 function goNextFromIntake() {
   // 必須チェック
   const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL.filter(q => !q.showIf)];
-  // NVH表示中ならNVH質問もチェック対象に
+  // NVH・エアコン表示中ならそれぞれもチェック対象に
   const symptoms = intakeAnswers['i_symptom_type'] || [];
   const hasNvh = Array.isArray(symptoms)
     ? symptoms.some(s => s.includes('異音') || s.includes('振動'))
     : false;
   if (hasNvh) {
     allIntake.push(...INTAKE_DETAIL.filter(q => q.showIf === 'nvh'));
+  }
+  const hasAc = Array.isArray(symptoms)
+    ? symptoms.some(s => s.includes('エアコン'))
+    : false;
+  if (hasAc) {
+    allIntake.push(...INTAKE_DETAIL.filter(q => q.showIf === 'ac'));
   }
   const missing = allIntake.filter(q => q.required && !intakeAnswers[q.id]);
   if (missing.length) {
@@ -994,6 +1071,9 @@ ${answersText}${meterSection}${warningSection}
 - メーターにメッセージや警告灯が表示されたと回答されている場合、車載コンピュータ（RoBやECU等）に記憶されたフリーズフレームデータやタイムスタンプと照合するため、「それがいつ（具体的な日付や何時何分頃、昼夜など）発生したか、できるだけ詳しい日時」を確認する質問を必ず含めてください。
 - メーター警告灯やメッセージが「今は消えている」「点灯していたが今は消えている」など、過去に発生して現在は消去されていると回答されている場合は、一時的なセンサーの汚れや環境要因（雨・泥など）の可能性があります。「洗車や雨あがり、走行など、どのようなきっかけや状況でランプや表示が消えたか（または自然に消えたか）」を詳しく確認する質問を必ず含めてください。
 - メーターにメッセージが表示されたと回答したが、具体的に特定できていない場合（選択がない場合）のみ、マスターデータの一覧から関連メッセージの選択質問を生成してください。
+- エアコンの不具合（エアコンが効かない・不具合がある）と回答されている場合、以下のルールを厳守してください：
+  - 「エアコンが効かない」という情報だけで、冷房（クーラー）の不具合だと勝手に決めつけて質問を生成することは【絶対に禁止】です。必ず「冷房（クーラー）と暖房（ヒーター）のどちらの機能で問題が発生しているのか、または両方か」を確認・明確にする質問を含めてください。
+  - 風の状態についても、「風自体が全く出ない」のか、「風は出るが風量が弱い」のか、「風量は十分だが温度が冷たくない/温かくない」のかを明確に区別し、再現可能な診断情報として特定するための質問を含めてください。
 - 不要な質問は生成しない（お客様の負担軽減）
 - 最低3問、最大10問程度
 - 各質問に「なぜこの質問が必要か」の理由を付ける
@@ -1160,7 +1240,8 @@ ${faultsText || '（なし）'}
 ■ エンジニアへの申し送り
 入庫時に確認すべきポイント（3〜5項目）。以下の整備プロのアドバイスを必ず含めてください：
 - 症状に「振動」が関係している、または現象が出たり出なかったりする場合：センサー本体の故障だけでなく、ハーネス（配線）、コネクタの嵌合（緩み）、端子の接圧不良を疑い、該当するシステム系統の『加振点検（手で配線を揺する・軽く叩くなど）』でピンポイントな不具合再現を試みるようアドバイスを明記してください。
-- ADAS関連（運転支援システム、カメラ、ミリ波レーダー、ソナーなど）の不具合で部品の脱着や交換が予想される場合：必ず『エーミング（校正・調整作業）が必要』である旨と、整備書手順・必要なテスター等の事前確認を促す一言アドバイスを必ず明記してください。`;
+- ADAS関連（運転支援システム、カメラ、ミリ波レーダー、ソナーなど）の不具合で部品の脱着や交換が予想される場合：必ず『エーミング（校正・調整作業）が必要』である旨と、整備書手順・必要なテスター等の事前確認を促す一言アドバイスを必ず明記してください。
+- エアコンの不具合がある場合：単に「エアコンが効かない」とするのではなく、「冷房（クーラー）なのか暖房（ヒーター）なのか、あるいは両方なのか」「風自体が出ないのか、風量が弱いのか、風量は出るが冷えない/温まらないのか」を問診結果から正確に判別し、その事実関係を「症状の概要」「再現手順」「エンジニアへの申し送り」に整合した形で明記してください。勝手な思い込みで冷房のみの不具合と決めつけた記載をしないでください。`;
 
   try {
     const data = await callGemini(prompt);
