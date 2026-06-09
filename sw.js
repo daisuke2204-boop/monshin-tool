@@ -43,6 +43,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Googleスプレッドシート（マスターデータ）はネットワークファースト（フォールバック付き）
+  if (url.hostname === 'docs.google.com') {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => {
+        return caches.match(event.request);
+      })
+    );
+    return;
+  }
+
   // その他のリソースはキャッシュファースト
   event.respondWith(
     caches.match(event.request).then((cached) => {

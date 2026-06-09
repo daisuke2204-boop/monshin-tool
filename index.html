@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>振動・異音 問診サポートツール</title>
+<title>故障診断 問診サポートツール</title>
 <meta name="description" content="AIが深掘り質問を自動生成し、再現可能なレベルの問診をサポートします">
 <!-- PWA対応 -->
 <link rel="manifest" href="manifest.json">
@@ -189,6 +189,87 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     padding-bottom:calc(3rem + env(safe-area-inset-bottom));
   }
 }
+
+/* ─── 警告灯グリッド ─── */
+.warning-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+  gap: .6rem;
+  margin-top: .6rem;
+}
+.warning-item {
+  position: relative;
+}
+.warning-item input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.warning-item label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: .6rem .4rem;
+  border-radius: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all .2s;
+  text-align: center;
+  min-height: 96px;
+}
+.warning-item label img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  margin-bottom: .4rem;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+.warning-item label span {
+  font-size: .68rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.warning-item input:checked+label {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+}
+.warning-item input:checked+label.warn-red {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+}
+.warning-item input:checked+label.warn-yellow {
+  background: var(--warn-dim);
+  border-color: var(--warn);
+}
+.warning-item input:checked+label span {
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .warning-grid {
+    grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+    gap: .7rem;
+  }
+  .warning-item label {
+    padding: .8rem .5rem;
+    min-height: 110px;
+  }
+  .warning-item label img {
+    width: 44px;
+    height: 44px;
+  }
+  .warning-item label span {
+    font-size: .74rem;
+  }
+}
 </style>
 </head>
 <body>
@@ -202,8 +283,8 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <!-- ===== Screen 1: APIキー ===== -->
 <div id="s_api" class="screen active center">
 <div class="content-wrap" style="max-width:460px;text-align:center">
-  <div style="font-size:2.6rem;margin-bottom:.3rem">🔊</div>
-  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">振動・異音 問診サポートツール</h1>
+  <div style="font-size:2.6rem;margin-bottom:.3rem">🔧</div>
+  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール</h1>
   <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.8rem;line-height:1.6">AIが深掘り質問を自動生成し<br>再現可能なレベルの問診をサポートします</p>
   <div class="glass-card" style="text-align:left">
     <div class="input-group">
@@ -272,9 +353,48 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="sec-header" style="margin-top:1rem"><div class="num">3</div><h3>症状の特徴</h3></div>
   <div id="intakeDetail"></div>
 
+  <!-- 異音・振動の詳細（条件付き表示） -->
+  <div id="intakeNvhSection" style="margin-top:1rem">
+    <div class="sec-header"><div class="num">4</div><h3>異音・振動の詳細</h3></div>
+    <div id="intakeNvh"></div>
+  </div>
+
   <div class="nav-bar" style="margin-top:1.5rem">
     <button class="btn btn-secondary" onclick="go('s_complaint')">← 戻る</button>
-    <button class="btn btn-primary" style="flex:1" onclick="requestDeepDive()">🤖 AIに深掘り質問を生成してもらう</button>
+    <button class="btn btn-primary" style="flex:1" onclick="goNextFromIntake()">次へ →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 3.5: メーター表示メッセージ特定 ===== -->
+<div id="s_meter" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper2b"></div>
+  <h2 class="page-title">📟 メーター表示・警告灯の特定</h2>
+  <p class="page-sub">点灯していた警告灯や、表示されたメッセージを選んでください（複数可）</p>
+
+  <!-- 警告灯のビジュアル選択 -->
+  <div id="warningLightSection" style="margin-bottom:1.5rem; display:none;">
+    <div class="sec-header"><div class="num">🚨</div><h3>点灯していた警告灯（ランプ・マーク）</h3></div>
+    <div class="warning-grid" id="warningGrid"></div>
+  </div>
+
+  <!-- メーターメッセージの選択 -->
+  <div id="meterMessageSection" style="display:none; margin-bottom:1.5rem;">
+    <div class="sec-header"><div class="num">📟</div><h3>表示されたメッセージ・記号</h3></div>
+    <div id="meterCategoryList"></div>
+
+    <div class="glass-card" style="margin-top:1rem">
+      <div class="input-group">
+        <label>上記の一覧にない場合、覚えている内容を記入してください</label>
+        <textarea id="meterFreeText" placeholder="例: ○○システム異常 と表示された" oninput="intakeSet('i_meter_freetext',this.value)"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_intake')">← 共通問診に戻る</button>
+    <button class="btn btn-primary" style="flex:1" onclick="goDeepDiveFromMeter()">🤖 AIに深掘り質問を生成してもらう</button>
   </div>
 </div>
 </div>
@@ -293,7 +413,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div id="deepdiveForm"></div>
 
   <div class="nav-bar" style="margin-top:1.5rem">
-    <button class="btn btn-secondary" onclick="go('s_intake')">← 共通問診に戻る</button>
+    <button class="btn btn-secondary" onclick="goBackFromDeepdive()">← 戻る</button>
     <button class="btn btn-accent" style="flex:1" onclick="generateSummary()">✅ 問診完了 → サマリー生成</button>
   </div>
 </div>
@@ -336,8 +456,8 @@ const INTAKE_CONDITION = [
     options:['渋滞しているとき','渋滞していない（スムーズに流れている）とき','関係ない/わからない'] },
   { id:'i_road', label:'どのような道路（路面）で発生しますか？（複数可）', type:'checkbox', required:false,
     options:['平らできれいな道（アスファルト舗装路）','デコボコした道（マンホールや舗装のつなぎ目など）','荒れた道（砂利道やデコボコ道など）','関係ない/わからない'] },
-  { id:'i_symptom_type', label:'気になっている症状はどれですか？', type:'radio', required:true,
-    options:['異音がする','振動がある','異音と振動の両方'] },
+  { id:'i_symptom_type', label:'気になっている症状はどれですか？（複数可）', type:'checkbox', required:true,
+    options:['異音がする','振動がある','エンジンの調子が悪い','メーターに警告やメッセージが出た','走行中に違和感がある','電装品（エアコン・ライト・ナビ等）の不具合','その他'] },
   { id:'i_speed', label:'どのくらいのスピード（車速）で発生しますか？（複数可）', type:'checkbox', required:false,
     options:['車が止まっているとき','ゆっくり走っているとき（〜30km/h以下）','普通の速さで走っているとき（30〜60km/h）','速いスピードで走っているとき（60km/h以上）','どのスピードでも発生する','わからない'] },
   { id:'i_engine_temp', label:'エンジンの温まり具合はどうでしたか？（複数可）', type:'checkbox', required:false,
@@ -362,14 +482,21 @@ const INTAKE_CONDITION = [
 ];
 
 const INTAKE_DETAIL = [
+  { id:'i_occurrence', label:'この症状は何回くらい起きていますか？', type:'radio', required:false,
+    options:['一度だけ発生した','数回発生した','何度も繰り返し発生している','常に発生している','わからない'] },
   { id:'i_sound_type', label:'音の種類はどれに近いですか？（複数可）', type:'checkbox', required:false,
-    options:['キーキー（高い金属音）','ゴーゴー（低い連続音）','カタカタ/カラカラ','ガタガタ/ゴトゴト','ゴリゴリ（擦れるような音）','キュルキュル（ベルトのような音）','ブーン/ウーン（こもるような音）','コンコン/コツコツ','音はしない/わからない','その他'] },
+    options:['キーキー（高い金属音）','ゴーゴー（低い連続音）','カタカタ/カラカラ','ガタガタ/ゴトゴト','ゴリゴリ（擦れるような音）','キュルキュル（ベルトのような音）','ブーン/ウーン（こもるような音）','コンコン/コツコツ','音はしない/わからない','その他'],
+    showIf: 'nvh' },
   { id:'i_location', label:'音や振動はどのあたりから聞こえ（感じ）ますか？（複数可）', type:'checkbox', required:false,
-    options:['前の方（エンジン側）','後ろの方（トランク側）','右側','左側','車体の下（下回り）','エンジンルーム','室内（ダッシュボードなど）','ハンドル周り','足元（ペダルなど）','わからない'] },
+    options:['前の方（エンジン側）','後ろの方（トランク側）','右側','左側','車体の下（下回り）','エンジンルーム','室内（ダッシュボードなど）','ハンドル周り','足元（ペダルなど）','わからない'],
+    showIf: 'nvh' },
   { id:'i_vibration_where', label:'振動はどこで感じますか？（複数可）', type:'checkbox', required:false,
-    options:['ハンドル','ブレーキペダル','アクセルペダル','シート（座席）','床（フロア）','車体全体','振動はない/感じない'] },
-  { id:'i_warning_light', label:'メーターの中に車の異常を示す警告灯（ランプ）はついていますか？（複数可）', type:'checkbox', required:false,
-    options:['ついていない','常に点灯している','チカチカ点滅している','複数の警告灯が同時についている','わからない'] },
+    options:['ハンドル','ブレーキペダル','アクセルペダル','シート（座席）','床（フロア）','車体全体','振動はない/感じない'],
+    showIf: 'nvh' },
+  { id:'i_warning_light', label:'メーターの中に警告灯（ランプ）が点灯していたことはありましたか？（複数可）', type:'checkbox', required:false,
+    options:['点灯したことはない','点灯していたが今は消えている','今も常に点灯している','チカチカ点滅していた/している','複数の警告灯が同時についていた/いる','わからない'] },
+  { id:'i_meter_message', label:'メーターやディスプレイに普段見かけないメッセージや記号（マーク）が表示されたことはありましたか？（複数可）', type:'checkbox', required:false,
+    options:['文章（メッセージ）が表示された','記号やマークが表示された','文章と記号の両方が表示された','表示されたことはない','わからない／覚えていない'] },
   { id:'i_trend', label:'症状は変化していますか？', type:'radio', required:false,
     options:['だんだんひどくなっている','変わらない','良くなっている','日によって（または乗る人によって）違う','わからない'] },
 ];
@@ -383,6 +510,80 @@ let intakeAnswers = {};   // 共通問診の回答
 let deepdiveResult = null; // AIが生成した深掘り結果
 let deepdiveAnswers = {};  // 深掘り問診の回答
 let summaryText = '';
+let meterMessages = [];   // スプレッドシートから読み込んだメーター表示メッセージ一覧
+let warningLights = [];   // スプレッドシートから読み込んだ警告灯一覧
+
+// ══════════════════════════════════════════════════════════════
+//  Googleスプレッドシートからメーター表示・警告灯マスターを読み込む
+// ══════════════════════════════════════════════════════════════
+const SHEET_ID = '10rjXdjKBhCeBfkzr0HRNe41GBglmhx2zMxpe3uZmObE';
+const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=0`;
+const WARNING_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('警告灯マスター')}`;
+
+async function loadMeterMessages() {
+  try {
+    const res = await fetch(SHEET_CSV_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const csv = await res.text();
+    const rows = parseCSV(csv);
+    // 1行目はヘッダー、2行目以降がデータ
+    meterMessages = rows.slice(1)
+      .filter(r => r[0] && r[1] && r[0] !== '(空欄)')
+      .map(r => ({
+        category: r[0].replace(/^"|"$/g, '').trim(),
+        message:  r[1].replace(/^"|"$/g, '').replace(/^\u201c|\u201d$/g, '').trim(),
+        note:     (r[2] || '').replace(/^"|"$/g, '').trim()
+      }));
+    console.log(`[MeterDB] ${meterMessages.length}件のメッセージを読み込みました`);
+  } catch(e) {
+    console.warn('[MeterDB] スプレッドシート読み込み失敗:', e.message);
+  }
+}
+
+async function loadWarningLights() {
+  try {
+    const res = await fetch(WARNING_SHEET_CSV_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const csv = await res.text();
+    const rows = parseCSV(csv);
+    // 1行目はヘッダー
+    warningLights = rows.slice(1)
+      .filter(r => r[0] && r[1])
+      .map(r => ({
+        image: r[0].replace(/^"|"$/g, '').trim(),
+        name:  r[1].replace(/^"|"$/g, '').trim(),
+        category: (r[2] || '').replace(/^"|"$/g, '').trim(),
+        color: (r[3] || '').replace(/^"|"$/g, '').replace(/[()（）]/g, '').trim(),
+        reason: (r[4] || '').replace(/^"|"$/g, '').trim(),
+        action: (r[5] || '').replace(/^"|"$/g, '').trim()
+      }));
+    console.log(`[WarningDB] ${warningLights.length}件の警告灯を読み込みました`);
+  } catch(e) {
+    console.warn('[WarningDB] 警告灯データ読み込み失敗:', e.message);
+  }
+}
+
+// 簡易CSVパーサー（ダブルクォート対応）
+function parseCSV(text) {
+  const rows = []; let row = []; let cell = ''; let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuote) {
+      if (c === '"' && text[i+1] === '"') { cell += '"'; i++; }
+      else if (c === '"') { inQuote = false; }
+      else { cell += c; }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n' || (c === '\r' && text[i+1] === '\n')) {
+        row.push(cell); cell = ''; rows.push(row); row = [];
+        if (c === '\r') i++;
+      } else { cell += c; }
+    }
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
 
 // ══════════════════════════════════════════════════════════════
 //  ユーティリティ
@@ -410,20 +611,49 @@ function esc(s) { if(!s)return''; const d=document.createElement('div'); d.textC
 
 function fillExample(el) { document.getElementById('complaintInput').value = el.textContent; }
 
+function hasWarningDisplay() {
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  if (symptoms.includes('メーターに警告やメッセージが出た')) return true;
+
+  const warningAns = intakeAnswers['i_warning_light'] || [];
+  if (!warningAns.length) return false;
+  return !warningAns.includes('点灯したことはない');
+}
+
+function hasMeterDisplay() {
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  if (symptoms.includes('メーターに警告やメッセージが出た')) return true;
+
+  const meterAns = intakeAnswers['i_meter_message'] || [];
+  if (!meterAns.length) return false;
+  return meterAns.some(v => v.includes('表示された'));
+}
+
 // ステッパー描画
-const STEPS = [
-  { id:'s_complaint', label:'訴え入力', n:'1' },
-  { id:'s_intake',    label:'共通問診',  n:'2' },
-  { id:'s_deepdive',  label:'深掘り問診', n:'3' },
-  { id:'s_summary',   label:'サマリー',  n:'4' },
-];
+function getSteps() {
+  const showMeterScreen = (hasMeterDisplay() && meterMessages.length > 0) || (hasWarningDisplay() && warningLights.length > 0);
+  const steps = [
+    { id:'s_complaint', label:'訴え入力', n:'1' },
+    { id:'s_intake',    label:'共通問診',  n:'2' },
+  ];
+  if (showMeterScreen) {
+    steps.push({ id:'s_meter', label:'表示特定', n:'3' });
+    steps.push({ id:'s_deepdive', label:'深掘り問診', n:'4' });
+    steps.push({ id:'s_summary',  label:'サマリー', n:'5' });
+  } else {
+    steps.push({ id:'s_deepdive', label:'深掘り問診', n:'3' });
+    steps.push({ id:'s_summary',  label:'サマリー', n:'4' });
+  }
+  return steps;
+}
 
 function renderSteppers(current) {
-  const idx = STEPS.findIndex(s => s.id === current);
-  const html = STEPS.map((s, i) => {
+  const steps = getSteps();
+  const idx = steps.findIndex(s => s.id === current);
+  const html = steps.map((s, i) => {
     const cls = i < idx ? 'step done' : i === idx ? 'step active' : 'step';
     const dot = i < idx ? '✓' : s.n;
-    const line = i < STEPS.length - 1
+    const line = i < steps.length - 1
       ? `<div class="step-line${i < idx ? ' done' : ''}"></div>` : '';
     return `<div class="${cls}"><div class="step-dot">${dot}</div><div class="step-label">${s.label}</div></div>${line}`;
   }).join('');
@@ -440,7 +670,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (sm) document.getElementById('modelSelect').value = sm;
 });
 
-function initApp() {
+async function initApp() {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key) { showToast('APIキーを入力してください'); return; }
   apiKey = key;
@@ -448,6 +678,13 @@ function initApp() {
   if (document.getElementById('saveKey').checked) {
     localStorage.setItem('monshin_api_key', key);
     localStorage.setItem('monshin_model', selectedModel);
+  }
+  // メーター表示・警告灯マスターを非同期で読み込み開始
+  if (meterMessages.length === 0) {
+    loadMeterMessages();
+  }
+  if (warningLights.length === 0) {
+    loadWarningLights();
   }
   go('s_complaint');
 }
@@ -466,7 +703,31 @@ function goIntake() {
 function renderIntake() {
   renderQGroup('intakeBasic', INTAKE_BASIC, 'intake');
   renderQGroup('intakeCondition', INTAKE_CONDITION, 'intake');
-  renderQGroup('intakeDetail', INTAKE_DETAIL, 'intake');
+  renderQGroup('intakeDetail', INTAKE_DETAIL.filter(q => !q.showIf), 'intake');
+  // NVH質問は最初は非表示、症状選択後に表示
+  updateNvhQuestions();
+}
+
+function updateNvhQuestions() {
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  const hasNvh = Array.isArray(symptoms) 
+    ? symptoms.some(s => s.includes('異音') || s.includes('振動'))
+    : (symptoms.includes('異音') || symptoms.includes('振動'));
+  
+  const nvhContainer = document.getElementById('intakeNvh');
+  const nvhSection = document.getElementById('intakeNvhSection');
+  if (!nvhContainer || !nvhSection) return;
+  
+  if (hasNvh) {
+    const nvhQs = INTAKE_DETAIL.filter(q => q.showIf === 'nvh');
+    nvhContainer.innerHTML = nvhQs.map(q => renderQ(q, 'intake')).join('');
+    nvhSection.style.display = 'block';
+  } else {
+    nvhContainer.innerHTML = '';
+    nvhSection.style.display = 'none';
+    // NVH質問の回答をクリア
+    INTAKE_DETAIL.filter(q => q.showIf === 'nvh').forEach(q => delete intakeAnswers[q.id]);
+  }
 }
 
 function renderQGroup(containerId, questions, prefix) {
@@ -498,11 +759,134 @@ function renderQ(q, prefix) {
 }
 
 // 共通問診の回答セット
-function intakeSet(id, val) { intakeAnswers[id] = val; }
+function intakeSet(id, val) { 
+  intakeAnswers[id] = val; 
+  if (id === 'i_symptom_type') updateNvhQuestions();
+}
 function intakeSetCb(id) {
   const chk = document.querySelectorAll(`input[name="${id}"]:checked`);
   intakeAnswers[id] = Array.from(chk).map(c=>c.value);
   if (!intakeAnswers[id].length) delete intakeAnswers[id];
+  if (id === 'i_symptom_type') updateNvhQuestions();
+}
+
+// ── 共通問診 → 次の画面への遷移ロジック ──
+function goNextFromIntake() {
+  // 必須チェック
+  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL.filter(q => !q.showIf)];
+  // NVH表示中ならNVH質問もチェック対象に
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  const hasNvh = Array.isArray(symptoms)
+    ? symptoms.some(s => s.includes('異音') || s.includes('振動'))
+    : false;
+  if (hasNvh) {
+    allIntake.push(...INTAKE_DETAIL.filter(q => q.showIf === 'nvh'));
+  }
+  const missing = allIntake.filter(q => q.required && !intakeAnswers[q.id]);
+  if (missing.length) {
+    showToast('必須項目を入力してください: ' + missing[0].label);
+    document.getElementById('qc_' + missing[0].id)?.scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
+
+  const showMeterScreen = (hasMeterDisplay() && meterMessages.length > 0) || (hasWarningDisplay() && warningLights.length > 0);
+
+  if (showMeterScreen) {
+    const warningSec = document.getElementById('warningLightSection');
+    const meterSec = document.getElementById('meterMessageSection');
+    
+    if (hasWarningDisplay() && warningLights.length > 0) {
+      renderWarningSelection();
+      warningSec.style.display = 'block';
+    } else {
+      warningSec.style.display = 'none';
+    }
+
+    if (hasMeterDisplay() && meterMessages.length > 0) {
+      renderMeterSelection();
+      meterSec.style.display = 'block';
+    } else {
+      meterSec.style.display = 'none';
+    }
+
+    go('s_meter');
+  } else {
+    requestDeepDive();
+  }
+}
+
+// ── 警告灯特定画面の描画 ──
+function renderWarningSelection() {
+  const container = document.getElementById('warningGrid');
+  if (!container) return;
+
+  let html = '';
+  warningLights.forEach((w, idx) => {
+    const uid = `warn_${idx}`;
+    const label = w.name;
+    const isRed = w.color.includes('赤');
+    const borderClass = isRed ? 'warn-red' : 'warn-yellow';
+    const imgUrl = `./warning-icons/${w.image}`;
+    
+    html += `<div class="warning-item"><input type="checkbox" name="warning_select" id="${uid}" value="${esc(label)}" onchange="updateWarningSelection()"><label for="${uid}" class="${borderClass}"><img src="${imgUrl}" alt="${esc(label)}" onerror="this.style.display='none'"><span>${esc(label)}</span></label></div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function updateWarningSelection() {
+  const chk = document.querySelectorAll('input[name="warning_select"]:checked');
+  intakeAnswers['i_warning_selected'] = Array.from(chk).map(c => c.value);
+  if (!intakeAnswers['i_warning_selected'].length) delete intakeAnswers['i_warning_selected'];
+}
+
+// ── メーター表示特定画面の描画 ──
+function renderMeterSelection() {
+  const container = document.getElementById('meterCategoryList');
+  
+  // カテゴリ別にグループ化
+  const categories = {};
+  meterMessages.forEach(m => {
+    const cat = m.category.split(' / ')[0].trim(); // 主カテゴリを取得
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(m);
+  });
+
+  let html = '';
+  Object.entries(categories).forEach(([cat, msgs], catIdx) => {
+    html += `<div class="glass-card" style="margin-bottom:.7rem">`;
+    html += `<div class="sec-header" style="margin-bottom:.5rem"><div class="num" style="font-size:.6rem">📟</div><h3>${esc(cat)}</h3><span class="count">${msgs.length}件</span></div>`;
+    html += '<div class="option-grid">';
+    msgs.forEach((m, idx) => {
+      const uid = `meter_${catIdx}_${idx}`;
+      const label = m.message;
+      html += `<div class="opt-item"><input type="checkbox" name="meter_select" id="${uid}" value="${esc(label)}" onchange="updateMeterSelection()"><label for="${uid}" style="font-size:.78rem;line-height:1.4">${esc(label)}</label></div>`;
+    });
+    html += '</div></div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function updateMeterSelection() {
+  const chk = document.querySelectorAll('input[name="meter_select"]:checked');
+  intakeAnswers['i_meter_selected'] = Array.from(chk).map(c => c.value);
+  if (!intakeAnswers['i_meter_selected'].length) delete intakeAnswers['i_meter_selected'];
+}
+
+function goDeepDiveFromMeter() {
+  updateMeterSelection();
+  updateWarningSelection();
+  requestDeepDive();
+}
+
+function goBackFromDeepdive() {
+  const showMeterScreen = (hasMeterDisplay() && meterMessages.length > 0) || (hasWarningDisplay() && warningLights.length > 0);
+  if (showMeterScreen) {
+    go('s_meter');
+  } else {
+    go('s_intake');
+  }
 }
 
 // 深掘り問診の回答セット
@@ -517,18 +901,10 @@ function deepSetCb(id) {
 //  Screen 3 → 4: AI深掘り質問の生成
 // ══════════════════════════════════════════════════════════════
 async function requestDeepDive() {
-  // 必須チェック
-  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL];
-  const missing = allIntake.filter(q => q.required && !intakeAnswers[q.id]);
-  if (missing.length) {
-    showToast('必須項目を入力してください: ' + missing[0].label);
-    document.getElementById('qc_' + missing[0].id)?.scrollIntoView({ behavior:'smooth', block:'center' });
-    return;
-  }
-
   showLoading('AIが共通問診の結果を分析し、深掘り質問を生成しています...');
 
-  // 回答テキスト化
+  // 回答テキスト化（NVH条件付き質問も含める）
+  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL];
   const answersText = allIntake.map(q => {
     let a = intakeAnswers[q.id];
     if (a === undefined || a === '') a = '（未回答）';
@@ -536,14 +912,69 @@ async function requestDeepDive() {
     return `- ${q.label}: ${a}`;
   }).join('\n');
 
-  const prompt = `あなたは自動車の振動・異音診断のエキスパートです。
-お客様の訴えと共通問診の結果を分析し、不具合の再現条件を正確に特定するための「深掘り質問」を生成してください。
+  // メーター表示メッセージの有無を確認し、AIプロンプトに一覧を含める
+  const hasMeterMsg = hasMeterDisplay();
 
+  let meterSection = '';
+  
+  // お客様が選択した具体的なメッセージがある場合
+  const selectedMsgs = intakeAnswers['i_meter_selected'] || [];
+  const meterFreeText = intakeAnswers['i_meter_freetext'] || '';
+  
+  if (selectedMsgs.length > 0 || meterFreeText) {
+    meterSection += '\n\n【お客様が特定したメーター表示メッセージ】';
+    if (selectedMsgs.length > 0) {
+      // 選択されたメッセージの補足情報を付与
+      selectedMsgs.forEach(msg => {
+        const found = meterMessages.find(m => m.message === msg);
+        if (found) {
+          meterSection += `\n- [${found.category}] ${found.message}（補足: ${found.note}）`;
+        } else {
+          meterSection += `\n- ${msg}`;
+        }
+      });
+    }
+    if (meterFreeText) {
+      meterSection += `\n- （自由記述）${meterFreeText}`;
+    }
+    meterSection += '\nこれらのメッセージに関連する不具合を推定し、深掘り質問に反映してください。';
+  } else if (hasMeterMsg && meterMessages.length > 0) {
+    // メッセージがあると言ったが特定できていない場合
+    const msgList = meterMessages.map(m => `- [${m.category}] ${m.message}`).join('\n');
+    meterSection += `\n\n【メーター表示メッセージ一覧（マスターデータ）】
+お客様がメーターにメッセージが表示されたと回答していますが、具体的なメッセージの特定ができていません。
+以下の一覧から関連しそうなものを選択式（checkbox）の質問として深掘り質問に含めてください（最大10件程度に絞り込み）。
+「上記にない別のメッセージ」という選択肢も最後に追加してください。
+
+${msgList}`;
+  }
+
+  // 選択された警告灯情報
+  const selectedWarnings = intakeAnswers['i_warning_selected'] || [];
+  let warningSection = '';
+  if (selectedWarnings.length > 0) {
+    warningSection += '\n\n【お客様が特定した点灯警告灯（ランプ・マーク）】';
+    selectedWarnings.forEach(name => {
+      const found = warningLights.find(w => w.name === name);
+      if (found) {
+        warningSection += `\n- ${found.name}（色: ${found.color}, カテゴリ: ${found.category}）`;
+        warningSection += `  - 発生原因の例: ${found.reason}`;
+        warningSection += `  - 対処方法の例: ${found.action}`;
+      } else {
+        warningSection += `\n- ${name}`;
+      }
+    });
+    warningSection += '\nこれらの警告灯に関連する不具合を優先的に疑い、深掘り質問や不具合推定に反映してください。';
+  }
+
+  const prompt = `あなたは自動車 of 故障診断のエキスパートです。
+お客様の訴えと共通問診の結果を分析し、不具合の再現条件を正確に特定するための「深掘り質問」を生成してください。
+ 
 【お客様の訴え】
 ${complaint}
-
+ 
 【共通問診の回答】
-${answersText}
+${answersText}${meterSection}${warningSection}
 
 【あなたのタスク】
 1. 推定される不具合を分析する
@@ -551,14 +982,13 @@ ${answersText}
 3. 再現条件を正確に特定するための具体的な深掘り質問を生成する
 
 【深掘り質問の生成ルール】
-- 共通問診の回答内容に基づいて、さらに具体的に聞くべきことを質問にする
+- 共通問診の回答内容に基づいて、再現条件を絞り込むために「さらに具体的に聞くべきこと」を質問にする
 - 例:「坂道」と回答 → 「上り坂ですか？下り坂ですか？」
 - 例:「低速」と回答 → 「具体的に何km/h付近ですか？」
-- 例:「ハンドル操作時」と回答 → 「右旋回ですか？左旋回ですか？どのくらいの角度ですか？」
-- 例:「ブレーキ操作時」と回答 → 「軽く踏んだ時ですか？強く踏み込んだ時ですか？」
-- 例:「カタカタ音」と回答 → 「速度に比例してテンポが変わりますか？一定のリズムですか？」
+- すでに選択・特定された具体的なメーターメッセージや警告灯（【お客様が特定したメーター表示メッセージ】【お客様が特定した点灯警告灯】）がある場合、そのメッセージ内容やマーク自体を重ねて質問（「どんな文章でしたか？」「どんなマークでしたか？」など）することは【絶対に禁止】です。すでに確定している情報として扱い、それ以外の発生条件（発生時の車速や操作、天気など）を深掘りしてください。
+- メーターにメッセージが表示されたと回答したが、具体的に特定できていない場合（選択がない場合）のみ、マスターデータの一覧から関連メッセージの選択質問を生成してください。
 - 不要な質問は生成しない（お客様の負担軽減）
-- 最低3問、最大8問程度
+- 最低3問、最大10問程度
 - 各質問に「なぜこの質問が必要か」の理由を付ける
 
 【出力JSON】
@@ -570,7 +1000,7 @@ ${answersText}
     {
       "id": "fu_1",
       "question": "質問文",
-      "type": "radio または text",
+      "type": "radio または checkbox または text",
       "options": ["選択肢1", "選択肢2"],
       "reason": "この質問が再現条件の特定に必要な理由"
     }
@@ -667,7 +1097,21 @@ async function generateSummary() {
     `- ${f.name}（${f.confidence}）: ${f.reason}`
   ).join('\n');
 
-  const prompt = `あなたは自動車の振動・異音診断のエキスパートです。
+  const selectedWarnings = intakeAnswers['i_warning_selected'] || [];
+  let warningSummaryText = '';
+  if (selectedWarnings.length > 0) {
+    warningSummaryText += '\n【点灯していた警告灯】';
+    selectedWarnings.forEach(name => {
+      const found = warningLights.find(w => w.name === name);
+      if (found) {
+        warningSummaryText += `\n- ${found.name}（色: ${found.color}, カテゴリ: ${found.category}）`;
+      } else {
+        warningSummaryText += `\n- ${name}`;
+      }
+    });
+  }
+
+  const prompt = `あなたは自動車の故障診断のエキスパートです。
 問診データをもとに、エンジニアが「この通りにやれば不具合を再現できる」レベルの具体的なサマリーを作成してください。
 マークダウン記法は使わず、プレーンテキストで出力してください。
 
@@ -675,7 +1119,7 @@ async function generateSummary() {
 ${complaint}
 
 【共通問診の回答】
-${intakeText}
+${intakeText}${warningSummaryText}
 
 【深掘り問診の回答】
 ${deepText || '（なし）'}
@@ -751,6 +1195,12 @@ function copySummary() {
 function resetAll() {
   complaint=''; intakeAnswers={}; deepdiveResult=null; deepdiveAnswers={}; summaryText='';
   document.getElementById('complaintInput').value='';
+  const meterFree = document.getElementById('meterFreeText');
+  if (meterFree) meterFree.value = '';
+  // 画面のチェックボックス・ラジオ・テキスト入力をすべてクリア
+  document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+  document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+  document.querySelectorAll('textarea').forEach(t => t.value = '');
   go('s_complaint');
 }
 
@@ -770,8 +1220,9 @@ async function callGemini(prompt, retries=3) {
     const data = await res.json();
     if (data.error) {
       const msg=data.error.message||'';
-      if ((res.status===429||msg.includes('RESOURCE_EXHAUSTED'))&&i<retries-1) {
-        const w=(i+1)*15; showLoading(`レート制限中...${w}秒後に再試行`);
+      const isRetryable = res.status === 429 || res.status === 503 || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('demand') || msg.includes('overloaded');
+      if (isRetryable && i<retries-1) {
+        const w=(i+1)*5; showLoading(`API混雑・制限中...${w}秒後に再試行 (${i+1}/${retries})`);
         await new Promise(r=>setTimeout(r,w*1000)); continue;
       }
       throw new Error(msg||'API Error');
@@ -797,8 +1248,9 @@ async function callGeminiJson(prompt, retries=3) {
     console.log('[GeminiJson] response:', JSON.stringify(data).substring(0,800));
     if (data.error) {
       const msg=data.error.message||'';
-      if ((res.status===429||msg.includes('RESOURCE_EXHAUSTED'))&&i<retries-1) {
-        const w=(i+1)*15; showLoading(`レート制限中...${w}秒後に再試行`);
+      const isRetryable = res.status === 429 || res.status === 503 || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('demand') || msg.includes('overloaded');
+      if (isRetryable && i<retries-1) {
+        const w=(i+1)*5; showLoading(`API混雑・制限中...${w}秒後に再試行 (${i+1}/${retries})`);
         await new Promise(r=>setTimeout(r,w*1000)); continue;
       }
       throw new Error(msg||'API Error');

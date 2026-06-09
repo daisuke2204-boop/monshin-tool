@@ -1,6 +1,6 @@
 {
-  "name": "振動・異音 問診サポートツール",
-  "short_name": "問診ツール",
+  "name": "故障診断 問診サポートツール",
+  "short_name": "故障診断ツール",
   "description": "AIが深掘り質問を自動生成し、再現可能なレベルの問診をサポートします",
   "start_url": "./index.html",
   "display": "standalone",
