@@ -284,7 +284,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <div id="s_api" class="screen active center">
 <div class="content-wrap" style="max-width:460px;text-align:center">
   <div style="font-size:2.6rem;margin-bottom:.3rem">🔧</div>
-  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール</h1>
+  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.3</span></h1>
   <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.8rem;line-height:1.6">AIが深掘り質問を自動生成し<br>再現可能なレベルの問診をサポートします</p>
   <div class="glass-card" style="text-align:left">
     <div class="input-group">
@@ -302,6 +302,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       <label for="saveKey">APIキーを保存</label>
     </div>
     <button class="btn btn-primary" style="width:100%" onclick="initApp()">はじめる →</button>
+    <div style="display:flex; gap:.5rem; margin-top:.5rem">
+      <button class="btn btn-secondary" style="width:100%; justify-content:center" onclick="startDemoMode()">デモモードで起動 🧪</button>
+    </div>
   </div>
 </div>
 </div>
@@ -532,6 +535,7 @@ let deepOtherTexts = {};   // 深掘り問診の「その他」自由記述テ�
 let summaryText = '';
 let meterMessages = [];   // スプレッドシートから読み込んだメーター表示メッセージ一覧
 let warningLights = [];   // スプレッドシートから読み込んだ警告灯一覧
+let isDemoMode = false;   // デモモードフラグ
 
 // ══════════════════════════════════════════════════════════════
 //  Googleスプレッドシートからメーター表示・警告灯マスターを読み込む
@@ -714,6 +718,20 @@ async function initApp() {
     loadWarningLights();
   }
   go('s_complaint');
+}
+
+function startDemoMode() {
+  isDemoMode = true;
+  apiKey = 'demo-key';
+  selectedModel = 'gemini-2.5-flash';
+  document.getElementById('complaintInput').value = 'ブレーキを踏むとキーキー音がする';
+  
+  // デモ用のマスターロード
+  if (meterMessages.length === 0) loadMeterMessages();
+  if (warningLights.length === 0) loadWarningLights();
+  
+  go('s_complaint');
+  showToast('デモモード（回答固定）で起動しました', 'info');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1057,6 +1075,50 @@ function deepSetCb(id) {
 async function requestDeepDive() {
   showLoading('AIが共通問診の結果を分析し、深掘り質問を生成しています...');
 
+  if (isDemoMode) {
+    // デモ用の固定回答（API呼び出しをせず1.5秒ローディング後に描画）
+    setTimeout(() => {
+      deepdiveResult = {
+        "suspected_faults": [
+          { "name": "ブレーキパッドの摩耗（ウェアインジケータ接触）", "confidence": "高", "reason": "制動時に高い金属音（キーキー）が発生しているため、パッド残量警告プレートがローターに接触している可能性が高い。" },
+          { "name": "ブレーキパッドの消音プレートのグリス切れ", "confidence": "中", "reason": "パッド裏面の消音グリスが切れ、ピストンとの間で共鳴してキーキー音が発生している。" }
+        ],
+        "followup_questions": [
+          {
+            "id": "fu_0",
+            "question": "音がするのは、ブレーキを軽く踏んだときですか？それとも強く踏んだときですか？",
+            "type": "radio",
+            "options": ["軽く踏んだときだけ鳴る", "強く踏んだときだけ鳴る", "踏み込み量に関わらず常に鳴る", "その他（具体的に記述）"],
+            "reason": "踏み込み量による音の変化を確認し、パッドとローターの接触状態を推定するため。"
+          },
+          {
+            "id": "fu_1",
+            "question": "バック（後退）しながらブレーキを踏んだときも、同じように音がしますか？",
+            "type": "radio",
+            "options": ["バックのときも鳴る", "前進のときだけ鳴る", "わからない"],
+            "reason": "進行方向による音の発生変化を確認し、パッドのガタや偏摩耗を特定するため。"
+          },
+          {
+            "id": "fu_2",
+            "question": "朝一番など、走り始めの冷えているときに特に音が大きいと感じますか？",
+            "type": "radio",
+            "options": ["走り始めが特に大きい", "しばらく走って温まると鳴る", "冷熱に関係なく鳴る"],
+            "reason": "ローターのサビや温度依存性（ブレーキ鳴き）によるものかを判別するため。"
+          }
+        ],
+        "interviewer_tips": [
+          "ブレーキパッドの残量をホイールの間から目視できる場合は、あらかじめ残量を確認しておくとスムーズです。"
+        ]
+      };
+      
+      deepdiveAnswers = {};
+      renderDeepDive();
+      go('s_deepdive');
+      hideLoading();
+    }, 1500);
+    return;
+  }
+
   // 回答テキスト化（NVH条件付き質問も含める）
   const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL];
   const answersText = allIntake.map(q => {
@@ -1238,6 +1300,40 @@ function renderDeepDive() {
 async function generateSummary() {
   showLoading('再現条件を含むサマリーを生成しています...');
 
+  if (isDemoMode) {
+    // デモ用の固定サマリー（API呼び出しをせず1.5秒ローディング後に描画）
+    setTimeout(() => {
+      summaryText = `■ 症状の概要
+ブレーキペダル踏み込み時に、足元付近より「キーキー」という高い金属音が発生。
+
+■ 再現手順（重要！）
+1. 一般道を時速40km/h程度で走行する。
+2. ブレーキペダルを軽く踏み込んで減速する。
+3. 減速中に足元（前輪付近）から「キーキー」と金属が擦れ合う音が発生することを確認する。
+
+■ 推定される不具合と根拠
+- ブレーキパッドの摩耗: パッド磨耗を警告する金属プレートがディスクローターに接触している可能性が高い。
+- ブレーキ鳴き（グリス切れ）: パッド裏面の消音シムにグリスが減少し共振している可能性。
+
+■ きっかけ・原因の推定
+長期間の走行に伴うブレーキパッドの経年摩耗、またはディスクローター表面のサビや汚れ。
+
+■ 再発防止アドバイス
+- ブレーキパッドは消耗品であるため、定期的な点検と早期交換を推奨。
+- 摩耗を放置するとディスクローター自体にキズが入り、追加の部品交換費用が発生することを説明。
+
+■ エンジニアへの申し送り
+- 左右前輪のブレーキパッド残量を測定（インナー／アウターそれぞれ確認）。
+- ディスクローター表面の偏摩耗やレコード盤状のキズの有無を確認。
+- パッドの残量が十分な場合は、シムを取り外して清掃のうえ、耐熱ブレーキグリスの再塗布を実施。`;
+
+      renderSummary(summaryText);
+      go('s_summary');
+      hideLoading();
+    }, 1500);
+    return;
+  }
+
   const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL];
   const intakeText = allIntake.map(q => {
     let a = getFormattedAnswer(q.id, 'intake');
@@ -1273,7 +1369,7 @@ async function generateSummary() {
 
   const prompt = `あなたは自動車の故障診断のエキスパートです。
 問診データをもとに、エンジニアが「この通りにやれば不具合を再現できる」レベルの具体的なサマリーを作成してください。
-マークダウン記法は使わず、プレーンテキストで出力してください。
+※重要：冗長な文章表現は避け、各項目は箇条書きを基本として、要点のみを極めてシンプルかつ端的に記述してください（地の文は最小限にすること）。マークダウン記法は使わず、プレーンテキストで出力してください。
 
 【お客様の訴え（原文）】
 ${complaint}
@@ -1290,31 +1386,31 @@ ${faultsText || '（なし）'}
 以下のセクションに分けて記載してください:
 
 ■ 症状の概要
-お客様の訴えと問診を統合した症状の説明（2〜3文）
+お客様の訴えと問診を統合した症状の概要（1〜2行で簡潔・端的に）
 
 ■ 再現手順（重要！）
-エンジニアがこの手順通りに操作すれば不具合を再現できるよう、具体的な手順を番号付きで記載してください。
+再現するための具体的な手順を、簡潔な番号付き箇条書き（手順は極力短く要点のみ、ステップ数も最小限）で記載してください。
 例:
-1. エンジンを始動し、5分間暖機する
-2. 一般道を走行し、40km/h程度まで加速する
-3. 右カーブで据え切りに近い角度までハンドルを切る
-4. この時、右前方からゴリゴリ音が発生するか確認する
-条件（速度、回転数、操作量、温度、路面等）はできるだけ具体的な数値で記載すること。
+1. エンジン始動後、5分暖機
+2. 40km/hで定速走行
+3. 右カーブで据え切り操作
+4. 右前方からの「ゴリゴリ音」発生有無を確認
+速度、回転数、操作量、温度、路面等の条件は具体的な数値で端的に記載すること。
 
 ■ 推定される不具合と根拠
-可能性の高い順に、問診から得られた根拠と合わせて記載
+可能性の高い順に、不具合名と問診から得られた根拠を箇条書きで端的に記載（詳細な長文説明は不要）
 
 ■ きっかけ・原因の推定
-問診から推定されるきっかけや原因。車両自体の不具合だけでなく、外的要因（センサーの汚れ、天候、ノイズなど）や仕様上の正常な制御動作による一時的なエラー表示（車両本体に故障がない状態）の可能性も想定して記載してください。
+推定されるきっかけや外的要因（天候、汚れ等）を箇条書きで簡潔に記載（1〜2項目程度）
 
 ■ 再発防止アドバイス
-お客様へお伝えする内容（2〜3項目）
+お客様へお伝えする内容を、簡潔に箇条書きで（2項目程度）
 
 ■ エンジニアへの申し送り
-入庫時に確認すべきポイント（3〜5項目）。以下の整備プロのアドバイスを必ず含めてください：
-- 症状に「振動」が関係している、または現象が出たり出なかったりする場合：センサー本体の故障だけでなく、ハーネス（配線）、コネクタの嵌合（緩み）、端子の接圧不良を疑い、該当するシステム系統の『加振点検（手で配線を揺する・軽く叩くなど）』でピンポイントな不具合再現を試みるようアドバイスを明記してください。
-- ADAS関連（運転支援システム、カメラ、ミリ波レーダー、ソナーなど）の不具合で部品の脱着や交換が予想される場合：必ず『エーミング（校正・調整作業）が必要』である旨と、整備書手順・必要なテスター等の事前確認を促す一言アドバイスを必ず明記してください。
-- エアコンの不具合がある場合：単に「エアコンが効かない」とするのではなく、「冷房（クーラー）なのか暖房（ヒーター）なのか、あるいは両方なのか」「風自体が出ないのか、風量が弱いのか、風量は出るが冷えない/温まらないのか」を問診結果から正確に判別し、その事実関係を「症状の概要」「再現手順」「エンジニアへの申し送り」に整合した形で明記してください。勝手な思い込みで冷房のみの不具合と決めつけた記載をしないでください。`;
+入庫時に確認すべきポイントを箇条書きで（3項目程度）。以下の整備プロのアドバイスを必ず含めてください：
+- 症状に「振動」が関係している、または再現が不安定な場合：『加振点検（配線揺すり等）』による再現の試みを促す
+- ADAS関連（カメラ、レーダー、ソナー等）の部品脱着・交換が予想される場合：『エーミング（校正）作業が必要』である旨を明記
+- エアコン不具合がある場合：冷房/暖房の区別、風量/温度の状態（風が出ない/弱い/冷えない等）を問診から正確に判別して記載。思い込みによる冷房決めつけは厳禁。`;
 
   try {
     const data = await callGemini(prompt);
@@ -1375,6 +1471,7 @@ function copySummary() {
 
 function resetAll() {
   complaint=''; intakeAnswers={}; deepdiveResult=null; deepdiveAnswers={}; summaryText='';
+  isDemoMode = false; // デモモードをリセット
   document.getElementById('complaintInput').value='';
   const meterFree = document.getElementById('meterFreeText');
   if (meterFree) meterFree.value = '';
@@ -1382,7 +1479,7 @@ function resetAll() {
   document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
   document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
   document.querySelectorAll('textarea').forEach(t => t.value = '');
-  go('s_complaint');
+  go('s_api');
 }
 
 // ══════════════════════════════════════════════════════════════
