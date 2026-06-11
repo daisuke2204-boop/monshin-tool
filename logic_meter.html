@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>メーター表示・警告灯特定画面 - AI分析ロジック解説</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f19;
+    --surface: #151d30;
+    --surface2: #1e2942;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.15);
+    --accent: #10b981;
+    --accent-glow: rgba(16, 185, 129, 0.15);
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --glass: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --warn: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Outfit', 'Noto Sans JP', sans-serif;
+    background: radial-gradient(circle at top, #141c2f 0%, var(--bg) 100%);
+    color: var(--text);
+    padding: 2.5rem 1.5rem;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  .container { max-width: 850px; margin: 0 auto; }
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 2rem;
+  }
+  .header-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+    filter: drop-shadow(0 0 10px var(--primary-glow));
+  }
+  h1 { font-size: 1.7rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
+  .header p { font-size: 0.95rem; color: var(--text-dim); }
+  
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--glass-border);
+    padding: 0.3rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+  .tab-btn:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.02);
+  }
+  .tab-btn.active {
+    color: #fff;
+    background: var(--primary);
+    box-shadow: 0 4px 12px var(--primary-glow);
+  }
+  
+  .tab-content { display: none; }
+  .tab-content.active {
+    display: block;
+    animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.8rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+  h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-left: 4px solid var(--primary);
+    padding-left: 0.75rem;
+  }
+  .card-sub {
+    font-size: 0.92rem;
+    color: var(--text-dim);
+    margin-bottom: 1.2rem;
+  }
+  
+  /* UI Details */
+  .highlight { color: var(--warn); font-weight: 600; }
+  .accent-text { color: var(--accent); font-weight: 600; }
+  
+  ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim); }
+  li { margin-bottom: 0.6rem; }
+  li strong { color: #fff; }
+  
+  .code-block {
+    padding: 1rem;
+    background: rgba(0,0,0,0.25);
+    border-radius: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    border: 1px solid var(--glass-border);
+    color: #a7f3d0;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 4px;
+    background: var(--primary-glow);
+    color: var(--primary);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+  }
+  .badge.success {
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+  
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  @media(max-width: 600px) {
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+  .compare-box {
+    background: var(--surface2);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .compare-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  
+  .btn-close {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--surface2);
+    border: 1px solid var(--glass-border);
+    color: var(--text);
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .btn-close:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 4px 15px var(--primary-glow);
+    transform: translateY(-1px);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-icon">📟</div>
+    <h1>メーター表示・警告灯特定画面 - AI分析ロジック</h1>
+    <p>点灯したマークや表示メッセージを厳密に照合し、不具合の核心へ絞り込む</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(event, 'demo1')">💧 デモ1・2（泥はね）</button>
+    <button class="tab-btn" onclick="switchTab(event, 'demo3')">📈 デモ3（悪路振動）</button>
+    <button class="tab-btn" onclick="switchTab(event, 'normal')">🤖 通常AIモード</button>
+  </div>
+
+  <!-- Common Card: 目的と役割 -->
+  <div class="card">
+    <h2>1. 目的と役割</h2>
+    <p>お客様の記憶や整備記録をもとに、点灯していた<span class="highlight">警告灯の種類</span>や、マルチインフォメーションディスプレイに表示された<span class="highlight">警告メッセージ</span>をデータベースから選択し、正確に特定します。</p>
+    <p style="margin-top:0.8rem; font-size:0.88rem; color:var(--text-dim);">
+      ユーザーの表記揺れ（例：「PCS」「プリクラッシュ」「自動ブレーキ」など）を防ぎ、車両データベースと合致させることで、関係のない不具合予測（機械的ブレーキ引きずり等）を完全にカットし、対象となるADAS（先進運転支援システム）関連のセンサー群に推論範囲を限定します。
+    </p>
+  </div>
+
+  <!-- TAB: Demo 1 -->
+  <div id="demo1" class="tab-content active">
+    <div class="card">
+      <h2>2. 特定されたメッセージとAI判定</h2>
+      <p class="card-sub">デモ1・2では、以下の選択情報に基づいて、センサーの物理的な覆いを疑います。</p>
+      
+      <div class="code-block">
+        ・クリアランスソナーOFF表示灯 (警告灯)<br>
+        ・運転支援システム機能停止 (警告メッセージ)
+      </div>
+      
+      <ul>
+        <li><strong>マスター補記情報の自動付与:</strong>
+          <br>選択されたメッセージに紐づくマスターデータの説明文から、『フロントカメラやセンサーの汚れ・雪付着により一時的に作動が停止する仕様』という仕様情報をAIが裏で取得します。
+        </li>
+        <li><strong>環境要因（雨天）との統合:</strong>
+          <br>共通問診で得られた「雨天」「対向車とのすれ違い」という前提条件とこの仕様情報が結合し、AIは「センサー物理遮蔽による一時停止」の仮説スコアを最大化します。
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- TAB: Demo 3 -->
+  <div id="demo3" class="tab-content">
+    <div class="card">
+      <h2>2. 特定されたメッセージとAI判定</h2>
+      <p class="card-sub">デモ3でも同様の項目が選択されますが、前提となる環境要因が異なるため、AIは全く違う仮説に焦点を当てます。</p>
+      
+      <div class="code-block">
+        ・クリアランスソナーOFF表示灯 (警告灯)<br>
+        ・運転支援システム機能停止 (警告メッセージ)
+      </div>
+      
+      <ul>
+        <li><strong>運動要因（振動）との統合:</strong>
+          <br>共通問診で選択された「荒れた道（振動・衝撃）」と「何度も繰り返し発生している」という情報と結合します。
+        </li>
+        <li><strong>電気的異常（接触不良）の疑い:</strong>
+          <br>AIは、外面の物理的汚れではなく、センサー背後にある「コネクタハーネスの接触不良（揺れによる瞬間的な回路断線）」または「センサー取付固定ブラケットのガタによる一時的な光軸ズレ」を強く疑う論理を形成します。
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- TAB: Normal AI Mode -->
+  <div id="normal" class="tab-content">
+    <div class="card">
+      <h2>2. 通常AIモードでのマスタマッピングの仕組み</h2>
+      <p class="card-sub">APIキーを使用する通常モードでは、裏側でスプレッドシートやマスターデータから抽出された情報がプロンプトに注入されます。</p>
+      
+      <ul>
+        <li><strong>プロンプトエンリッチメント:</strong>
+          <br>単に「クリアランスソナーOFF」という文字列を送るのではなく、システムが自動的に <strong>[対象システム: ADAS] [関連センサー: 超音波ソナー] [色: 黄色] [重要度: 注意] [メーカー解説: 泥、水、雪等の付着により一時的に機能が停止される可能性あり。または通信断線エラー。]</strong> のような付随情報（メタデータ）をプロンプトに動的に付加してGeminiに送信します。
+        </li>
+        <li><strong>曖昧な申告へのアプローチ:</strong>
+          <br>お客様が具体的なメッセージを特定できない場合、共通問診から関連しそうな警告灯やメッセージをAI自身が最大10件程度に絞り込んで、チェックボックス質問として「深掘り問診」内で直接選択を促す動的プロンプトを生成します。
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="text-align: center;">
+    <button class="btn-close" onclick="window.close()">解説を閉じる</button>
+  </div>
+</div>
+
+<script>
+  function switchTab(evt, tabId) {
+    const tabContents = document.getElementsByClassName("tab-content");
+    for (let i = 0; i < tabContents.length; i++) {
+      tabContents[i].classList.remove("active");
+    }
+    const tabBtns = document.getElementsByClassName("tab-btn");
+    for (let i = 0; i < tabBtns.length; i++) {
+      tabBtns[i].classList.remove("active");
+    }
+    document.getElementById(tabId).classList.add("active");
+    evt.currentTarget.classList.add("active");
+  }
+</script>
+</body>
+</html>

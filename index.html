@@ -270,6 +270,79 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     font-size: .74rem;
   }
 }
+
+/* ─── アコーディオンUI（デモモード2用） ─── */
+.q-card.accordion {
+  padding: 0;
+  overflow: hidden;
+}
+.accordion-header {
+  padding: 1rem 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+.accordion-header:hover {
+  background-color: var(--surface2);
+}
+.accordion-header .q-label {
+  margin-bottom: 0;
+  flex: 1;
+}
+.accordion-icon {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  transition: transform 0.3s ease;
+  margin-left: 0.5rem;
+}
+.accordion.active .accordion-icon {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+.accordion-body {
+  padding: 0 1.2rem 1.2rem 1.2rem;
+  border-top: 1px solid var(--glass-border);
+  animation: accordionSlideDown 0.3s ease-out;
+}
+@keyframes accordionSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* サマリー用アコーディオン */
+.summary-section.accordion {
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--glass);
+  margin-bottom: 0.75rem;
+  padding: 0;
+}
+.summary-header {
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+.summary-header:hover {
+  background-color: var(--surface2);
+}
+.summary-header h4 {
+  margin-bottom: 0;
+  flex: 1;
+}
+.summary-body {
+  padding: 0.8rem 1rem;
+  border-top: 1px solid var(--glass-border);
+  background: var(--surface);
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
+}
 </style>
 </head>
 <body>
@@ -284,7 +357,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <div id="s_api" class="screen active center">
 <div class="content-wrap" style="max-width:460px;text-align:center">
   <div style="font-size:2.6rem;margin-bottom:.3rem">🔧</div>
-  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.5</span></h1>
+  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.6</span></h1>
   <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.8rem;line-height:1.6">AIが深掘り質問を自動生成し<br>再現可能なレベルの問診をサポートします</p>
   <div class="glass-card" style="text-align:left">
     <div class="input-group">
@@ -302,8 +375,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       <label for="saveKey">APIキーを保存</label>
     </div>
     <button class="btn btn-primary" style="width:100%" onclick="initApp()">はじめる →</button>
-    <div style="display:flex; gap:.5rem; margin-top:.5rem">
-      <button class="btn btn-secondary" style="width:100%; justify-content:center" onclick="startDemoMode()">デモモードで起動 🧪</button>
+    <div style="display:flex; gap:.5rem; margin-top:.5rem; flex-wrap:wrap">
+      <button class="btn btn-secondary" style="flex:1; min-width:80px; justify-content:center; padding:.7rem .5rem;" onclick="startDemoMode()">デモ1 🧪</button>
+      <button class="btn btn-secondary" style="flex:1; min-width:80px; justify-content:center; padding:.7rem .5rem;" onclick="startDemoMode2()">デモ2 🗂️</button>
+      <button class="btn btn-secondary" style="flex:1; min-width:80px; justify-content:center; padding:.7rem .5rem;" onclick="startDemoMode3()">デモ3 📈</button>
     </div>
   </div>
 </div>
@@ -315,18 +390,29 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="stepper" id="stepper"></div>
   <h2 class="page-title">📝 お客様のご用命</h2>
   <p class="page-sub">お客様の言葉をできるだけそのまま記録してください（お客様の言葉どおりに入力）</p>
-  <div class="glass-card">
-    <div class="input-group">
-      <label>ご用命内容 <span style="color:var(--text-muted); font-size:0.75rem; font-weight:normal">（お客様の言葉どおりに入力）</span></label>
-      <textarea id="complaintInput" rows="3" placeholder="例: 曲がり角で普段と違う音がするようになった"></textarea>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_complaint.html', '_blank')">💡 この画面のAI判定ロジックを見る</a>
+  </div>
+  <div class="glass-card" id="complaintCard">
+    <div class="accordion-header-wrap" id="complaintHeaderWrap" style="display:none;">
+      <div class="accordion-header" onclick="toggleAccordion('complaintBody')">
+        <h3 style="font-size:0.92rem;font-weight:600;">📝 お客様のご用命（入力内容）</h3>
+        <span class="accordion-icon">▼</span>
+      </div>
     </div>
-    <label style="font-size:.78rem;color:var(--text-dim);display:block;margin-bottom:.4rem">入力例（クリックで挿入）</label>
-    <div class="chip-wrap">
-      <span class="chip" onclick="fillExample(this)">ブレーキを踏むとキーキー音がする</span>
-      <span class="chip" onclick="fillExample(this)">高速でハンドルが小刻みに震える</span>
-      <span class="chip" onclick="fillExample(this)">段差を越えるとガタガタ異音がする</span>
-      <span class="chip" onclick="fillExample(this)">右に曲がるとゴリゴリ音がする</span>
-      <span class="chip" onclick="fillExample(this)">アイドリング中に車体がブルブル揺れる</span>
+    <div id="complaintBody">
+      <div class="input-group">
+        <label>ご用命内容 <span style="color:var(--text-muted); font-size:0.75rem; font-weight:normal">（お客様の言葉どおりに入力）</span></label>
+        <textarea id="complaintInput" rows="3" placeholder="例: 曲がり角で普段と違う音がするようになった"></textarea>
+      </div>
+      <label style="font-size:.78rem;color:var(--text-dim);display:block;margin-bottom:.4rem" id="exampleLabel">入力例（クリックで挿入）</label>
+      <div class="chip-wrap" id="exampleChips">
+        <span class="chip" onclick="fillExample(this)">ブレーキを踏むとキーキー音がする</span>
+        <span class="chip" onclick="fillExample(this)">高速でハンドルが小刻みに震える</span>
+        <span class="chip" onclick="fillExample(this)">段差を越えるとガタガタ異音がする</span>
+        <span class="chip" onclick="fillExample(this)">右に曲がるとゴリゴリ音がする</span>
+        <span class="chip" onclick="fillExample(this)">アイドリング中に車体がブルブル揺れる</span>
+      </div>
     </div>
     <div class="nav-bar">
       <button class="btn btn-secondary" onclick="go('s_api')">← 設定</button>
@@ -342,6 +428,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="stepper" id="stepper2"></div>
   <h2 class="page-title">🏥 共通問診（初診シート）</h2>
   <p class="page-sub">すべてのお客様に共通してお聞きする基本項目です</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_intake.html', '_blank')">💡 この画面のAI判定ロジックを見る</a>
+  </div>
 
   <!-- 基本情報 -->
   <div class="sec-header"><div class="num">1</div><h3>基本情報</h3></div>
@@ -386,6 +475,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="stepper" id="stepper2b"></div>
   <h2 class="page-title">📟 メーター表示・警告灯の特定</h2>
   <p class="page-sub">点灯していた警告灯や、表示されたメッセージを選んでください（複数可）</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_meter.html', '_blank')">💡 この画面のAI判定ロジックを見る</a>
+  </div>
 
   <!-- 警告灯のビジュアル選択 -->
   <div id="warningLightSection" style="margin-bottom:1.5rem; display:none;">
@@ -419,6 +511,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="stepper" id="stepper3"></div>
   <h2 class="page-title">🔬 AI深掘り問診</h2>
   <p class="page-sub">共通問診の回答をもとに、AIが再現条件を特定するための質問を生成しました</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_deepdive.html', '_blank')">💡 この画面のAI判定ロジックを見る</a>
+  </div>
 
   <!-- AI分析結果 -->
   <div class="glass-card" id="analysisCard" style="margin-bottom:1rem"></div>
@@ -439,6 +534,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="stepper" id="stepper4"></div>
   <h2 class="page-title">📊 問診サマリー</h2>
   <p class="page-sub">この情報をもとに不具合の再現・診断を行ってください</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_summary.html', '_blank')">💡 この画面のAI判定ロジックを見る</a>
+  </div>
   <div class="glass-card" id="summaryContent"></div>
   <div class="nav-bar" style="margin-top:1.5rem">
     <button class="btn btn-secondary" onclick="go('s_deepdive')">← 問診に戻る</button>
@@ -469,7 +567,7 @@ const INTAKE_CONDITION = [
   { id:'i_traffic', label:'渋滞の状況はどうでしたか？（複数可）', type:'checkbox', required:false,
     options:['渋滞しているとき','渋滞していない（スムーズに流れている）とき','関係ない/わからない'] },
   { id:'i_road', label:'どのような道路（路面）で発生しますか？（複数可）', type:'checkbox', required:false,
-    options:['平らできれいな道（アスファルト舗装路）','デコボコした道（マンホールや舗装のつなぎ目など）','荒れた道（砂利道やデコボコ道など）','関係ない/わからない'] },
+    options:['平らできれいな道（アスファルト舗装路）','デコボコした道（段差や道路のつなぎ目など、一時的な衝撃）','荒れた道（砂利道や未舗装路など、連続する振動・衝撃）','関係ない/わからない'] },
   { id:'i_symptom_type', label:'気になっている症状はどれですか？（複数可）', type:'checkbox', required:true,
     options:['異音がする','振動がある','エンジンの調子が悪い','メーターに警告やメッセージが出た','走行中に違和感がある','エアコンが効かない・不具合がある','電装品（ライト・ナビ・窓等）の不具合','その他'] },
   { id:'i_speed', label:'どのくらいのスピード（車速）で発生しますか？（複数可）', type:'checkbox', required:false,
@@ -546,6 +644,8 @@ let summaryText = '';
 let meterMessages = [];   // スプレッドシートから読み込んだメーター表示メッセージ一覧
 let warningLights = [];   // スプレッドシートから読み込んだ警告灯一覧
 let isDemoMode = false;   // デモモードフラグ
+let isDemoMode2 = false;  // デモモード2フラグ
+let isDemoMode3 = false;  // デモモード3フラグ
 
 // ══════════════════════════════════════════════════════════════
 //  Googleスプレッドシートからメーター表示・警告灯マスターを読み込む
@@ -627,6 +727,23 @@ function go(id) {
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
   renderSteppers(id);
+}
+
+function toggleAccordion(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const isOpening = el.style.display === 'none';
+  el.style.display = isOpening ? 'block' : 'none';
+  
+  // 親のカードに active クラスをトグルして矢印を回転させる
+  const parent = el.closest('.accordion');
+  if (parent) {
+    if (isOpening) {
+      parent.classList.add('active');
+    } else {
+      parent.classList.remove('active');
+    }
+  }
 }
 
 function showToast(msg, type='error') {
@@ -746,7 +863,7 @@ function startDemoMode() {
     'i_trigger': '対向車とすれ違った',
     'i_location_place': ['一般道（街乗り・郊外）'],
     'i_traffic': ['渋滞していない（スムーズに流れている）とき'],
-    'i_road': ['荒れた道（砂利道やデコボコ道など）'],
+    'i_road': ['荒れた道（砂利道や未舗装路など、連続する振動・衝撃）'],
     'i_symptom_type': ['メーターに警告やメッセージが出た'],
     'i_speed': ['普通の速さで走っているとき（30〜60km/h）'],
     'i_engine_temp': ['エンジンが十分に温まっているとき（しばらく走った後）'],
@@ -765,6 +882,97 @@ function startDemoMode() {
   
   go('s_complaint');
   showToast('デモモード（回答固定）で起動しました', 'info');
+}
+
+function startDemoMode2() {
+  isDemoMode2 = true;
+  isDemoMode = true;
+  apiKey = 'demo-key';
+  selectedModel = 'gemini-2.5-flash';
+  
+  // 1. ご用命入力（初期値）
+  document.getElementById('complaintInput').value = 'メーターに警告文が出た。今は消えているが不安なので見てほしい。';
+  
+  // 2. 共通問診の初期回答を設定
+  intakeAnswers = {
+    'i_onset': '1ヶ月以内',
+    'i_frequency': '稀に（再現しにくい）',
+    'i_weather': ['雨'],
+    'i_trigger': '対向車とすれ違った',
+    'i_location_place': ['一般道（街乗り・郊外）'],
+    'i_traffic': ['渋滞していない（スムーズに流れている）とき'],
+    'i_road': ['荒れた道（砂利道や未舗装路など、連続する振動・衝撃）'],
+    'i_symptom_type': ['メーターに警告やメッセージが出た'],
+    'i_speed': ['普通の速さで走っているとき（30〜60km/h）'],
+    'i_engine_temp': ['エンジンが十分に温まっているとき（しばらく走った後）'],
+    'i_operation': ['スピードを一定に保って走っているとき'],
+    'i_occurrence': '一度だけ発生した',
+    'i_warning_light': ['点灯していたが今は消えている'],
+    'i_meter_message': ['文章（メッセージ）が表示された'],
+    'i_trend': 'わからない',
+    'i_other_remarks': '対向車とすれ違ったとき泥をはねられて、運転席の前あたりにかかった直後、警告文が出た'
+  };
+  intakeOtherTexts = {};
+  
+  // デモ用のマスターロード
+  if (meterMessages.length === 0) loadMeterMessages();
+  if (warningLights.length === 0) loadWarningLights();
+  
+  // ご用命画面のアコーディオン化
+  const card = document.getElementById('complaintCard');
+  if (card) {
+    card.classList.add('accordion');
+    document.getElementById('complaintHeaderWrap').style.display = 'block';
+    document.getElementById('complaintBody').className = 'accordion-body';
+    document.getElementById('complaintBody').style.display = 'none'; // 初期状態は非表示
+    document.getElementById('exampleLabel').style.display = 'none';
+    document.getElementById('exampleChips').style.display = 'none';
+  }
+  
+  go('s_complaint');
+  showToast('デモモード2（各画面内アコーディオンUI）で起動しました', 'info');
+}
+
+function startDemoMode3() {
+  isDemoMode3 = true;
+  isDemoMode = true;
+  apiKey = 'demo-key';
+  selectedModel = 'gemini-2.5-flash';
+  
+  // 1. ご用命入力（初期値）
+  document.getElementById('complaintInput').value = 'メーターに警告文が出た。今は消えているが出たり消えたりする。';
+  
+  // 2. 共通問診の初期回答を設定
+  intakeAnswers = {
+    'i_onset': '1ヶ月以内',
+    'i_frequency': '時々',
+    'i_weather': ['天気は関係ない/わからない'],
+    'i_trigger': '',
+    'i_location_place': ['一般道（街乗り・郊外）'],
+    'i_traffic': ['渋滞していない（スムーズに流れている）とき'],
+    'i_road': ['荒れた道（砂利道や未舗装路など、連続する振動・衝撃）'],
+    'i_symptom_type': ['メーターに警告やメッセージが出た'],
+    'i_speed': ['普通の速さで走っているとき（30〜60km/h）'],
+    'i_engine_temp': ['エンジンが十分に温まっているとき（しばらく走った後）'],
+    'i_operation': ['スピードを一定に保って走っているとき'],
+    'i_occurrence': '数回発生した',
+    'i_warning_light': ['点灯していたが今は消えている'],
+    'i_meter_message': ['文章（メッセージ）が表示された'],
+    'i_trend': 'わからない',
+    'i_other_remarks': ''
+  };
+  intakeOtherTexts = {};
+  
+  // 警告灯・メッセージの初期選択
+  intakeAnswers['i_warning_selected'] = ['クリアランスソナーOFF表示灯'];
+  intakeAnswers['i_meter_selected'] = ['運転支援システム機能停止'];
+  
+  // デモ用のマスターロード
+  if (meterMessages.length === 0) loadMeterMessages();
+  if (warningLights.length === 0) loadWarningLights();
+  
+  go('s_complaint');
+  showToast('デモモード3（悪路振動・警告灯出入り）で起動しました', 'info');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -898,7 +1106,28 @@ function renderQ(q, prefix) {
     inputHtml = `<textarea id="ta_${prefix}_${q.id}" placeholder="自由記述" oninput="${prefix}Set('${q.id}',this.value)">${esc(val)}</textarea>`;
   }
 
-  return `<div class="q-card" id="qc_${prefix}_${q.id}">${`<div class="q-label">${esc(q.label)}${reqMark}</div>`}${hintHtml}${inputHtml}${reasonHtml}</div>`;
+  if (isDemoMode2) {
+    const contentId = `ac_content_${prefix}_${q.id}`;
+    let ansSummaryText = '';
+    const formatted = getFormattedAnswer(q.id, prefix);
+    if (formatted) {
+      ansSummaryText = ` <span style="font-size:0.75rem; color:var(--accent); font-weight:normal; margin-left:0.5rem;">[回答: ${esc(formatted)}]</span>`;
+    }
+    return `
+      <div class="q-card accordion" id="qc_${prefix}_${q.id}">
+        <div class="accordion-header" onclick="toggleAccordion('${contentId}')">
+          <div class="q-label" style="margin-bottom:0;">${esc(q.label)}${reqMark}${ansSummaryText}</div>
+          <span class="accordion-icon">▼</span>
+        </div>
+        <div class="accordion-body" id="${contentId}" style="display:none;">
+          ${hintHtml}
+          ${inputHtml}
+          ${reasonHtml}
+        </div>
+      </div>`;
+  } else {
+    return `<div class="q-card" id="qc_${prefix}_${q.id}">${`<div class="q-label">${esc(q.label)}${reqMark}</div>`}${hintHtml}${inputHtml}${reasonHtml}</div>`;
+  }
 }
 
 function intakeSetOtherText(id, val) {
@@ -1041,10 +1270,30 @@ function renderWarningSelection() {
     const borderClass = isRed ? 'warn-red' : 'warn-yellow';
     const imgUrl = `./warning-icons/${w.image}`;
     
-    html += `<div class="warning-item"><input type="checkbox" name="warning_select" id="${uid}" value="${esc(label)}" onchange="updateWarningSelection()"><label for="${uid}" class="${borderClass}"><img src="${imgUrl}" alt="${esc(label)}" onerror="this.style.display='none'"><span>${esc(label)}</span></label></div>`;
+    const isChecked = Array.isArray(intakeAnswers['i_warning_selected'])
+      ? intakeAnswers['i_warning_selected'].includes(label)
+      : (intakeAnswers['i_warning_selected'] === label);
+    const checked = isChecked ? 'checked' : '';
+    
+    html += `<div class="warning-item"><input type="checkbox" name="warning_select" id="${uid}" value="${esc(label)}" ${checked} onchange="updateWarningSelection()"><label for="${uid}" class="${borderClass}"><img src="${imgUrl}" alt="${esc(label)}" onerror="this.style.display='none'"><span>${esc(label)}</span></label></div>`;
   });
 
   container.innerHTML = html;
+
+  if (isDemoMode2) {
+    const warningSec = document.getElementById('warningLightSection');
+    if (warningSec && !warningSec.classList.contains('accordion')) {
+      warningSec.classList.add('accordion');
+      const hdr = warningSec.querySelector('.sec-header');
+      if (hdr) {
+        hdr.className = 'accordion-header';
+        hdr.onclick = () => toggleAccordion('warningGridWrap');
+        hdr.innerHTML = `<div class="num">🚨</div><h3>点灯していた警告灯（ランプ・マーク）</h3><span class="accordion-icon">▼</span>`;
+      }
+      // グリッドをラップする
+      container.outerHTML = `<div id="warningGridWrap" class="accordion-body" style="display:none;">${container.outerHTML}</div>`;
+    }
+  }
 }
 
 function updateWarningSelection() {
@@ -1067,18 +1316,61 @@ function renderMeterSelection() {
 
   let html = '';
   Object.entries(categories).forEach(([cat, msgs], catIdx) => {
-    html += `<div class="glass-card" style="margin-bottom:.7rem">`;
-    html += `<div class="sec-header" style="margin-bottom:.5rem"><div class="num" style="font-size:.6rem">📟</div><h3>${esc(cat)}</h3><span class="count">${msgs.length}件</span></div>`;
-    html += '<div class="option-grid">';
-    msgs.forEach((m, idx) => {
-      const uid = `meter_${catIdx}_${idx}`;
-      const label = m.message;
-      html += `<div class="opt-item"><input type="checkbox" name="meter_select" id="${uid}" value="${esc(label)}" onchange="updateMeterSelection()"><label for="${uid}" style="font-size:.78rem;line-height:1.4">${esc(label)}</label></div>`;
-    });
-    html += '</div></div>';
+    const contentId = `meter_cat_body_${catIdx}`;
+    if (isDemoMode2) {
+      html += `<div class="glass-card accordion" style="margin-bottom:.7rem">`;
+      html += `<div class="accordion-header" onclick="toggleAccordion('${contentId}')">`;
+      html += `<div class="sec-header" style="margin-bottom:0; border-bottom:none; padding-bottom:0;"><div class="num" style="font-size:.6rem">📟</div><h3>${esc(cat)}</h3><span class="count">${msgs.length}件</span></div>`;
+      html += `<span class="accordion-icon">▼</span></div>`;
+      html += `<div class="accordion-body" id="${contentId}" style="display:none;">`;
+      html += '<div class="option-grid">';
+      msgs.forEach((m, idx) => {
+        const uid = `meter_${catIdx}_${idx}`;
+        const label = m.message;
+        const isChecked = Array.isArray(intakeAnswers['i_meter_selected'])
+          ? intakeAnswers['i_meter_selected'].includes(label)
+          : (intakeAnswers['i_meter_selected'] === label);
+        const checked = isChecked ? 'checked' : '';
+        html += `<div class="opt-item"><input type="checkbox" name="meter_select" id="${uid}" value="${esc(label)}" ${checked} onchange="updateMeterSelection()"><label for="${uid}" style="font-size:.78rem;line-height:1.4">${esc(label)}</label></div>`;
+      });
+      html += '</div></div></div>';
+    } else {
+      html += `<div class="glass-card" style="margin-bottom:.7rem">`;
+      html += `<div class="sec-header" style="margin-bottom:.5rem"><div class="num" style="font-size:.6rem">📟</div><h3>${esc(cat)}</h3><span class="count">${msgs.length}件</span></div>`;
+      html += '<div class="option-grid">';
+      msgs.forEach((m, idx) => {
+        const uid = `meter_${catIdx}_${idx}`;
+        const label = m.message;
+        const isChecked = Array.isArray(intakeAnswers['i_meter_selected'])
+          ? intakeAnswers['i_meter_selected'].includes(label)
+          : (intakeAnswers['i_meter_selected'] === label);
+        const checked = isChecked ? 'checked' : '';
+        html += `<div class="opt-item"><input type="checkbox" name="meter_select" id="${uid}" value="${esc(label)}" ${checked} onchange="updateMeterSelection()"><label for="${uid}" style="font-size:.78rem;line-height:1.4">${esc(label)}</label></div>`;
+      });
+      html += '</div></div>';
+    }
   });
 
   container.innerHTML = html;
+
+  if (isDemoMode2) {
+    const meterSec = document.getElementById('meterMessageSection');
+    if (meterSec && !meterSec.classList.contains('accordion')) {
+      meterSec.classList.add('accordion');
+      const hdr = meterSec.querySelector('.sec-header');
+      if (hdr) {
+        hdr.className = 'accordion-header';
+        hdr.onclick = () => toggleAccordion('meterMessageWrap');
+        hdr.innerHTML = `<div class="num">📟</div><h3>表示されたメッセージ・記号</h3><span class="accordion-icon">▼</span>`;
+      }
+      // container (meterCategoryList) と freeTextカード をラップする
+      const originalHtml = container.outerHTML + document.querySelector('#meterMessageSection .glass-card:not(.accordion)').outerHTML;
+      container.outerHTML = `<div id="meterMessageWrap" class="accordion-body" style="display:none;">${originalHtml}</div>`;
+      // 重複したfreeTextカードを消す
+      const cards = document.querySelectorAll('#meterMessageSection .glass-card:not(.accordion)');
+      if (cards.length > 0) cards[cards.length - 1].remove();
+    }
+  }
 }
 
 function updateMeterSelection() {
@@ -1121,6 +1413,115 @@ async function requestDeepDive() {
   showLoading('AIが共通問診の結果を分析し、深掘り質問を生成しています...');
 
   if (isDemoMode) {
+    if (isDemoMode3) {
+      setTimeout(() => {
+        deepdiveResult = {
+          "suspected_faults": [
+            {
+              "name": "運転支援システム（PCS、LDA、LTA、レーダークルーズ、PKSBなど）のセンサーまたはカメラの一時的な機能停止",
+              "confidence": "高",
+              "reason": "お客様が特定したメッセージ（運転支援システム機能停止）と、クリアランスソナーOFF表示灯点灯から、複数の運転支援システムに関連するセンサーやカメラに一時的な異常が発生している可能性が高い。特に荒れた道での発生や、出たり消えたりする状況から、センサーへの泥付着や、振動によるコネクタの一時的な接触不良が考えられる。"
+            },
+            {
+              "name": "クリアランスソナーシステムの異常",
+              "confidence": "高",
+              "reason": "お客様が特定した「クリアランスソナーOFF表示灯」の点灯から、クリアランスソナーシステム自体に異常が発生している可能性が高い。荒れた道での発生や、出たり消えたりする状況から、センサーの汚れ、断線、または配線の一時的な接触不良が考えられる。"
+            },
+            {
+              "name": "配線やコネクタの接触不良（特に悪路での振動によるもの）",
+              "confidence": "中",
+              "reason": "荒れた道（砂利道やデコボコ道など）を走行し、「出たり消えたりする」という症状から、振動によるセンサーやECU関連の接続、コネクタ部分が一時的な接触不良で、システムが一時的に警告を点灯させている可能性がある。"
+            }
+          ],
+          "followup_questions": [
+            {
+              "id": "fu_0",
+              "question": "メーターに警告文や警告灯が表示されたのは、直近でいつ頃でしたか？（具体的な日付や時間帯、昼夜など、覚えている範囲で構いませんので詳しく教えてください）",
+              "type": "text",
+              "options": [],
+              "reason": "車載コンピュータに記録されているフリーズフレームデータやタイムスタンプと照合し、不具合発生時の車両の状態を正確に把握するため。"
+            },
+            {
+              "id": "fu_1",
+              "question": "警告文や警告灯が消えたのは、どのような状況でしたか？（例：洗車後、雨が止んだ後、しばらく走行した後、エンジンを再起動した後、自然に消えたなど）",
+              "type": "checkbox",
+              "options": [
+                "洗車後",
+                "雨が止んだ後",
+                "しばらく走行した後",
+                "エンジンを再起動した後",
+                "自然に消えた",
+                "その他（具体的に記入）"
+              ],
+              "reason": "一時的なセンサーの汚れ（水濡れ、泥など）が走行や時間経過でリセットされたのか、またはシステムの一時的なリセットによるものかを判別するため。"
+            },
+            {
+              "id": "fu_2",
+              "question": "警告文や警告灯が表示された際、車両の周囲（特にフロントバンパー、リアバンパー、フロントガラス上部など）に泥、雪、水、落ち葉などの付着物はありませんでしたか？",
+              "type": "radio",
+              "options": [
+                "あった",
+                "なかった",
+                "覚えていない"
+              ],
+              "reason": "環境要因（センサーの汚れや遮蔽）による一時的な機能停止であるかを物理的に確認するため。"
+            },
+            {
+              "id": "fu_3",
+              "question": "「荒れた道（砂利道や未舗装路など、連続する振動・衝撃）」とありますが、具体的にどのような路面状況でしたか？（例：未舗装の砂利道、工事中のデコボコ道、マンホールが多い道など）",
+              "type": "text",
+              "options": [],
+              "reason": "路面からの連続的な振動がどの程度センサーや配線に影響を与えたか、振動の具体的な規模を把握するため。"
+            },
+            {
+              "id": "fu_4",
+              "question": "警告文や警告灯が表示された際、何か特定の操作（例：ハンドルを切る、ブレーキを踏む、アクセルを踏むなど）を行っていましたか？",
+              "type": "radio",
+              "options": [
+                "特定の操作をしていた",
+                "何も操作していなかった（定速走行中）",
+                "覚えていない"
+              ],
+              "reason": "特定の操作時（車体の傾きや荷重移動など）にのみ発生する、センサーの検知範囲のズレや配線の引っ張りの可能性を検証するため。"
+            },
+            {
+              "id": "fu_5",
+              "question": "警告文や警告灯が表示されている間、運転支援システム（PCS、レーダークルーズコントロールなど）は実際に機能していませんでしたか？",
+              "type": "radio",
+              "options": [
+                "機能していなかった",
+                "機能していた",
+                "気にしていないのでわからない"
+              ],
+              "reason": "メッセージの表示が単なる誤表示（警告のみ）であるか、システムが実際に遮断されたかを切り分けるため。"
+            }
+          ],
+          "interviewer_tips": [
+            "お客様が「荒れた道」と回答された場所について、可能であれば具体的な地名（○○の道、○○付近など）を伺い、実走テストの参考にしてください。",
+            "警告文や警告灯が表示された際の状況について、お客様が思い出すきっかけとなるよう、具体的なシーン（例：カーブを曲がっている時、加速時、減速時など）を質問しながら傾聴してみてください。",
+            "お客様が特定したメッセージや警告灯は確定情報として扱い、その内容を改めて質問するのではなく、発生時の状況や消えた状況に焦点を当てて深掘りしてください。"
+          ]
+        };
+
+        deepdiveAnswers = {
+          'fu_0': '3日前、14時頃',
+          'fu_1': ['その他（具体的に記入）'],
+          'fu_2': 'なかった',
+          'fu_3': '未舗装路',
+          'fu_4': '覚えていない',
+          'fu_5': '気にしていないのでわからない'
+        };
+        deepOtherTexts = {
+          'fu_1': '未舗装路を抜けてしばらくしたら消えた'
+        };
+
+        renderDeepDive();
+        go('s_deepdive');
+        hideLoading();
+      }, 1500);
+      return;
+    }
+
     // デモ用の固定回答（API呼び出しをせず1.5秒ローディング後に描画）
     setTimeout(() => {
       deepdiveResult = {
@@ -1180,7 +1581,7 @@ async function requestDeepDive() {
           },
           {
             "id": "fu_3",
-            "question": "「荒れた道（砂利道やデコボコ道など）」で発生したとのことですが、その荒れた道はどの程度の期間、走行していましたか？また、泥はねはその荒れた道で発生しましたか？",
+            "question": "「荒れた道（砂利道や未舗装路など、連続する振動・衝撃）」で発生したとのことですが、その荒れた道はどの程度の期間、走行していましたか？また、泥はねはその荒れた道で発生しましたか？",
             "type": "text",
             "options": [],
             "reason": "荒れた道における振動の影響度や、泥はねのタイミングとの前後関係を確認し、配線不良や泥付着の状況を詳しく探るため。"
@@ -1361,12 +1762,28 @@ function renderDeepDive() {
     `<div class="tip-card">💡 ${esc(t)}</div>`
   ).join('');
 
-  ac.innerHTML = `
-    <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:.6rem">🤖 AI分析結果</h3>
-    <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
-    ${faults}
-    ${tips ? '<div style="margin-top:.7rem"><div style="font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.35rem">📌 問診者へのアドバイス</div>' + tips + '</div>' : ''}
-  `;
+  if (isDemoMode2) {
+    ac.className = 'glass-card accordion';
+    ac.innerHTML = `
+      <div class="accordion-header" onclick="toggleAccordion('analysisCardBody')">
+        <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:0;">🤖 AI分析結果 <span style="font-size:0.75rem; color:var(--text-dim); font-weight:normal; margin-left:0.5rem;">(クリックで展開)</span></h3>
+        <span class="accordion-icon">▼</span>
+      </div>
+      <div class="accordion-body" id="analysisCardBody" style="display:none;">
+        <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
+        ${faults}
+        ${tips ? '<div style="margin-top:.7rem"><div style="font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.35rem">📌 問診者へのアドバイス</div>' + tips + '</div>' : ''}
+      </div>
+    `;
+  } else {
+    ac.className = 'glass-card';
+    ac.innerHTML = `
+      <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:.6rem">🤖 AI分析結果</h3>
+      <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
+      ${faults}
+      ${tips ? '<div style="margin-top:.7rem"><div style="font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.35rem">📌 問診者へのアドバイス</div>' + tips + '</div>' : ''}
+    `;
+  }
 
   // ── 深掘り質問フォーム ──
   const form = document.getElementById('deepdiveForm');
@@ -1401,6 +1818,45 @@ async function generateSummary() {
   showLoading('再現条件を含むサマリーを生成しています...');
 
   if (isDemoMode) {
+    if (isDemoMode3) {
+      setTimeout(() => {
+        summaryText = `■ 症状の概要
+走行中、メーターにクリアランスソナーOFF表示灯と警告文（運転支援システム関連）が点灯。未舗装路走行後に消灯する症状が数回発生。
+
+■ 再現手順（重要！）
+1. エンジン暖機後、一般道（未舗装路）を30〜60km/hで定速走行。
+2. 荒れた路面（砂利道やデコボコ道）を走行し、振動を与える。
+3. メーター内のクリアランスソナーOFF表示灯と警告文の点灯有無を確認。
+
+■ 推定される不具合と根拠
+- クリアランスソナーシステムの異常
+  * 根拠：クリアランスソナーOFF表示灯点灯、荒れた道での発生、出たり消えたりする症状。
+- 運転支援システム（センサー・カメラ）の一時的な機能停止
+  * 根拠：運転支援システム関連の警告文表示、荒れた道での発生、出たり消えたりする症状。
+- 配線やコネクタの接触不良
+  * 根拠：荒れた道での発生、振動による症状の出没。
+
+■ きっかけ・原因の推定
+- 荒れた路面走行時の振動
+- センサーまたは配線への一時的な負荷
+
+■ 再発防止アドバイス
+- 未舗装路や荒れた道の走行時は、速度を控えめにしてください。
+- 症状が頻繁に発生する場合は、早めの点検をお勧めします。
+
+■ エンジニアへの申し送り
+- 診断機を接続し、DTC（ダイアグコード）およびRoB（車両挙動データ）を読み取って問診内容との整合性を確認してください。
+- 症状再現時は加振点検（配線揺すり等）を試みてください。
+- 運転支援システム関連のセンサー・配線・コネクタを中心に点検してください。
+- ADAS関連部品の脱着・交換が予想される場合、エーミング（校正）作業が必要です。`;
+
+        renderSummary(summaryText);
+        go('s_summary');
+        hideLoading();
+      }, 1500);
+      return;
+    }
+
     // デモ用の固定サマリー（API呼び出しをせず1.5秒ローディング後に描画）
     setTimeout(() => {
       summaryText = `■ 症状の概要
@@ -1424,6 +1880,7 @@ async function generateSummary() {
 - 特に雨天時や荒れた道を走行した後は、センサー部の確認をお勧めします。
 
 ■ エンジニアへの申し送り
+- 診断機を接続し、DTC（ダイアグコード）およびRoB（車両挙動データ）を読み取って問診内容との整合性を確認してください。
 - 運転席側フロントバンパーのクリアランスソナー周辺の泥汚れや損傷を確認。
 - センサーおよび関連配線のコネクタ接触不良の有無を『加振点検（配線揺すり等）』で確認。
 - クリアランスソナーの部品脱着・交換が予想される場合、『エーミング（校正）作業が必要』。`;
@@ -1511,6 +1968,7 @@ ${faultsText || '（なし）'}
 入庫時に確認すべきポイントを箇条書きで（3項目程度）。以下の整備プロのアドバイスを必ず含めてください：
 - 症状に「振動」が関係している、または再現が不安定な場合：『加振点検（配線揺すり等）』による再現の試みを促す
 - ADAS関連（カメラ、レーダー、ソナー等）の部品脱着・交換が予想される場合：『エーミング（校正）作業が必要』である旨を明記
+- メーターに警告表示（警告灯や警告メッセージ）が出た場合：『DTC（ダイアグコード）およびRoB（車両挙動データ）の確認』により問診内容と整合する履歴や発生パラメータを点検するよう指示する
 - エアコン不具合がある場合：冷房/暖房の区別、風量/温度の状態（風が出ない/弱い/冷えない等）を問診から正確に判別して記載。思い込みによる冷房決めつけは厳禁。`;
 
   try {
@@ -1544,7 +2002,7 @@ function renderSummary(text) {
     let html = `<div class="summary-section"><h4>👤 お客様のご用命（原文）</h4>
       <div style="padding:.5rem .7rem;border-radius:8px;background:var(--surface2);font-size:.85rem;line-height:1.6">「${esc(complaint)}」</div></div>`;
 
-    sections.forEach(sec => {
+    sections.forEach((sec, idx) => {
       try {
         const lines = sec.trim().split('\n');
         if (lines.length === 0) return;
@@ -1555,19 +2013,47 @@ function renderSummary(text) {
         
         let imgHtml = '';
         if (isDemoMode) {
-          if (title.includes('症状の概要')) {
-            imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="症状の概要"></div>';
-          } else if (title.includes('推定される不具合と根拠')) {
-            imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/03.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="推定される不具合と根拠"></div>';
-          } else if (title.includes('再発防止アドバイス')) {
-            imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/05.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="再発防止アドバイス"></div>';
-          } else if (title.includes('エンジニアへの申し送り')) {
-            imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/06.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り"></div>';
-            imgHtml += '<div style="margin-top:0.8rem;"><img src="./summary_image/06_02.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り2"></div>';
+          if (isDemoMode3) {
+            // デモ3用の画像
+            if (title.includes('症状の概要')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="症状の概要"></div>';
+            } else if (title.includes('推定される不具合と根拠')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_03.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="推定される不具合と根拠"></div>';
+            } else if (title.includes('再発防止アドバイス')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_05.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="再発防止アドバイス"></div>';
+            } else if (title.includes('エンジニアへの申し送り')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_06.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り"></div>';
+            }
+          } else {
+            // デモ1・2用の画像
+            if (title.includes('症状の概要')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="症状の概要"></div>';
+            } else if (title.includes('推定される不具合と根拠')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/03.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="推定される不具合と根拠"></div>';
+            } else if (title.includes('再発防止アドバイス')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/05.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="再発防止アドバイス"></div>';
+            } else if (title.includes('エンジニアへの申し送り')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/06.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り"></div>';
+              imgHtml += '<div style="margin-top:0.8rem;"><img src="./summary_image/06_02.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り2"></div>';
+            }
           }
         }
         
-        html += `<div class="summary-section"><h4>${icon} ${esc(title)}</h4><div class="summary-content">${esc(body)}${imgHtml}</div></div>`;
+        if (isDemoMode2) {
+          const contentId = `summary_sec_body_${idx}`;
+          html += `
+            <div class="summary-section accordion" style="margin-bottom:0.75rem;">
+              <div class="summary-header" onclick="toggleAccordion('${contentId}')">
+                <h4 style="margin-bottom:0;">${icon} ${esc(title)}</h4>
+                <span class="accordion-icon">▼</span>
+              </div>
+              <div class="summary-body" id="${contentId}" style="display:none;">
+                <div class="summary-content">${esc(body)}${imgHtml}</div>
+              </div>
+            </div>`;
+        } else {
+          html += `<div class="summary-section"><h4>${icon} ${esc(title)}</h4><div class="summary-content">${esc(body)}${imgHtml}</div></div>`;
+        }
       } catch(secErr) {
         console.error('[renderSummary] Section parse error:', secErr, sec);
       }
@@ -1588,9 +2074,65 @@ function copySummary() {
 function resetAll() {
   complaint=''; intakeAnswers={}; deepdiveResult=null; deepdiveAnswers={}; summaryText='';
   isDemoMode = false; // デモモードをリセット
+  isDemoMode2 = false; // デモモード2をリセット
+  isDemoMode3 = false; // デモモード3をリセット
   document.getElementById('complaintInput').value='';
   const meterFree = document.getElementById('meterFreeText');
   if (meterFree) meterFree.value = '';
+  
+  // アコーディオン要素の解除・初期化
+  const card = document.getElementById('complaintCard');
+  if (card) {
+    card.classList.remove('accordion');
+    card.classList.remove('active');
+    document.getElementById('complaintHeaderWrap').style.display = 'none';
+    const cBody = document.getElementById('complaintBody');
+    cBody.className = '';
+    cBody.style.display = 'block';
+    document.getElementById('exampleLabel').style.display = 'block';
+    document.getElementById('exampleChips').style.display = 'flex';
+  }
+
+  // メーター特定画面のアコーディオン化も解除
+  const warningSec = document.getElementById('warningLightSection');
+  if (warningSec) {
+    warningSec.classList.remove('accordion');
+    const hdr = warningSec.querySelector('.accordion-header');
+    if (hdr) {
+      hdr.className = 'sec-header';
+      hdr.onclick = null;
+      hdr.innerHTML = `<div class="num">🚨</div><h3>点灯していた警告灯（ランプ・マーク）</h3>`;
+    }
+    const gridWrap = document.getElementById('warningGridWrap');
+    if (gridWrap) {
+      const container = document.getElementById('warningGrid');
+      gridWrap.parentNode.insertBefore(container, gridWrap);
+      gridWrap.remove();
+    }
+  }
+
+  const meterSec = document.getElementById('meterMessageSection');
+  if (meterSec) {
+    meterSec.classList.remove('accordion');
+    const hdr = meterSec.querySelector('.accordion-header');
+    if (hdr) {
+      hdr.className = 'sec-header';
+      hdr.onclick = null;
+      hdr.innerHTML = `<div class="num">📟</div><h3>表示されたメッセージ・記号</h3>`;
+    }
+    const msgWrap = document.getElementById('meterMessageWrap');
+    if (msgWrap) {
+      const list = document.getElementById('meterCategoryList');
+      msgWrap.parentNode.insertBefore(list, msgWrap);
+      // freeTextカードを元の位置に戻す
+      const freeCard = msgWrap.querySelector('.glass-card');
+      if (freeCard) {
+        msgWrap.parentNode.insertBefore(freeCard, msgWrap.nextSibling);
+      }
+      msgWrap.remove();
+    }
+  }
+
   // 画面のチェックボックス・ラジオ・テキスト入力をすべてクリア
   document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
   document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);

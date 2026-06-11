@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ご用命入力画面 - AI分析ロジック解説</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f19;
+    --surface: #151d30;
+    --surface2: #1e2942;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.15);
+    --accent: #10b981;
+    --accent-glow: rgba(16, 185, 129, 0.15);
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --glass: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --warn: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Outfit', 'Noto Sans JP', sans-serif;
+    background: radial-gradient(circle at top, #141c2f 0%, var(--bg) 100%);
+    color: var(--text);
+    padding: 2.5rem 1.5rem;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  .container { max-width: 850px; margin: 0 auto; }
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 2rem;
+  }
+  .header-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+    filter: drop-shadow(0 0 10px var(--primary-glow));
+  }
+  h1 { font-size: 1.7rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
+  .header p { font-size: 0.95rem; color: var(--text-dim); }
+  
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--glass-border);
+    padding: 0.3rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+  .tab-btn:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.02);
+  }
+  .tab-btn.active {
+    color: #fff;
+    background: var(--primary);
+    box-shadow: 0 4px 12px var(--primary-glow);
+  }
+  
+  .tab-content { display: none; }
+  .tab-content.active {
+    display: block;
+    animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.8rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+  h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-left: 4px solid var(--primary);
+    padding-left: 0.75rem;
+  }
+  .card-sub {
+    font-size: 0.92rem;
+    color: var(--text-dim);
+    margin-bottom: 1.2rem;
+  }
+  
+  /* UI Details */
+  .highlight { color: var(--warn); font-weight: 600; }
+  .accent-text { color: var(--accent); font-weight: 600; }
+  
+  ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim); }
+  li { margin-bottom: 0.6rem; }
+  li strong { color: #fff; }
+  
+  .code-block {
+    padding: 1rem;
+    background: rgba(0,0,0,0.25);
+    border-radius: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    border: 1px solid var(--glass-border);
+    color: #a7f3d0;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 4px;
+    background: var(--primary-glow);
+    color: var(--primary);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+  }
+  .badge.success {
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+  
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  @media(max-width: 600px) {
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+  .compare-box {
+    background: var(--surface2);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .compare-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  
+  .btn-close {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--surface2);
+    border: 1px solid var(--glass-border);
+    color: var(--text);
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .btn-close:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 4px 15px var(--primary-glow);
+    transform: translateY(-1px);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-icon">📝</div>
+    <h1>ご用命入力画面 - AI分析ロジック</h1>
+    <p>お客様の訴えをありのままに捉え、正確な診断フローを開始する起点</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(event, 'demo1')">💧 デモ1・2（泥はね）</button>
+    <button class="tab-btn" onclick="switchTab(event, 'demo3')">📈 デモ3（悪路振動）</button>
+    <button class="tab-btn" onclick="switchTab(event, 'normal')">🤖 通常AIモード</button>
+  </div>
+
+  <!-- Common Card: 目的と役割 -->
+  <div class="card">
+    <h2>1. 目的と役割</h2>
+    <p>ご用命入力は、すべての故障診断プロセスの出発点です。ここでは、受付スタッフやエンジニアが先入観を持たず、<span class="highlight">「お客様が感じた言葉の通りに入力する（＝原文維持）」</span>ことを重視します。</p>
+    <p style="margin-top:0.8rem; font-size:0.88rem; color:var(--text-dim);">
+      日常の曖昧な表現や、前後の状況説明（「〜の後に〜になった」など）には、不具合を特定するための貴重な文脈が含まれています。専門用語に置き換える前の「生の言葉」こそ、AIが最適に状況を汲み取る鍵になります。
+    </p>
+  </div>
+
+  <!-- TAB: Demo 1 -->
+  <div id="demo1" class="tab-content active">
+    <div class="card">
+      <h2>2. デモ入力文とAI解釈</h2>
+      <div class="code-block">「メーターに警告文が出た。今は消えているが不安なので見てほしい。」</div>
+      <p class="card-sub">AIはこの一文から、以下の重要なキーワードと論理フラグを瞬時に抽出します。</p>
+      
+      <div class="compare-grid">
+        <div class="compare-box">
+          <div class="compare-title"><span class="badge">警告文が出た</span></div>
+          <p style="font-size:0.85rem; color:var(--text-dim);">メーターやマルチインフォメーションディスプレイへの警告表示を検知。メーター表示特定フロー（Screen 3.5）への誘導フラグを立てます。</p>
+        </div>
+        <div class="compare-box">
+          <div class="compare-title"><span class="badge success">今は消えている</span></div>
+          <p style="font-size:0.85rem; color:var(--text-dim);">症状が「永続的」ではなく、「一過性」あるいは環境依存であることを検知。深掘り問診において「どういう状況で消灯したか」の質問生成トリガーとなります。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Demo 3 -->
+  <div id="demo3" class="tab-content">
+    <div class="card">
+      <h2>2. デモ入力文とAI解釈</h2>
+      <div class="code-block">「メーターに警告文が出た。今は消えているが出たり消えたりする。」</div>
+      <p class="card-sub">AIは「出たり消えたりする」という間欠症状の表現から、一過性の付着物ではなく別の要因を導き出します。</p>
+      
+      <div class="compare-grid">
+        <div class="compare-box">
+          <div class="compare-title"><span class="badge">出たり消えたりする</span></div>
+          <p style="font-size:0.85rem; color:var(--text-dim);">症状が繰り返し発生と復帰を繰り返す「間欠性」であると判別。これは、走行中の「車両の振動・衝撃」に同期して電気端子の接続状態が変わる物理的要因を示唆します。</p>
+        </div>
+        <div class="compare-box">
+          <div class="compare-title"><span class="badge success">接触不良の疑い</span></div>
+          <p style="font-size:0.85rem; color:var(--text-dim);">雨や汚れといった環境要因のほかに、配線の緩みやコネクタ端子の抜けなどの「接触不良」仮説のスコアを大幅に上昇させます。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Normal AI Mode -->
+  <div id="normal" class="tab-content">
+    <div class="card">
+      <h2>2. 通常AIモードでの自然言語抽出 (NLU)</h2>
+      <p class="card-sub">APIキーを入力した通常モードでは、Gemini APIがご用命の内容を解析し、構造化データ（JSON）に自動分類します。</p>
+      <ul>
+        <li><strong>症状ジャンルの推定:</strong> 異音 (NVH) / 振動 / メーター警告 / 機械作動不良 などの判別。</li>
+        <li><strong>再現パターンの特定:</strong> 「時々」「特定の速度で」「段差越え時」といった再現条件の初期アタリを付けます。</li>
+        <li><strong>動的な画面遷移制御:</strong> ご用命の中にメーター異常や警告灯のワードが含まれていれば、メーター表示特定画面へのルートが自動的にアクティブになります。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="text-align: center;">
+    <button class="btn-close" onclick="window.close()">解説を閉じる</button>
+  </div>
+</div>
+
+<script>
+  function switchTab(evt, tabId) {
+    const tabContents = document.getElementsByClassName("tab-content");
+    for (let i = 0; i < tabContents.length; i++) {
+      tabContents[i].classList.remove("active");
+    }
+    const tabBtns = document.getElementsByClassName("tab-btn");
+    for (let i = 0; i < tabBtns.length; i++) {
+      tabBtns[i].classList.remove("active");
+    }
+    document.getElementById(tabId).classList.add("active");
+    evt.currentTarget.classList.add("active");
+  }
+</script>
+</body>
+</html>

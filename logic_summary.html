@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>問診サマリー画面 - AI分析ロジック解説</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f19;
+    --surface: #151d30;
+    --surface2: #1e2942;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.15);
+    --accent: #10b981;
+    --accent-glow: rgba(16, 185, 129, 0.15);
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --glass: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --warn: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Outfit', 'Noto Sans JP', sans-serif;
+    background: radial-gradient(circle at top, #141c2f 0%, var(--bg) 100%);
+    color: var(--text);
+    padding: 2.5rem 1.5rem;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  .container { max-width: 850px; margin: 0 auto; }
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 2rem;
+  }
+  .header-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+    filter: drop-shadow(0 0 10px var(--primary-glow));
+  }
+  h1 { font-size: 1.7rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
+  .header p { font-size: 0.95rem; color: var(--text-dim); }
+  
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--glass-border);
+    padding: 0.3rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+  .tab-btn:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.02);
+  }
+  .tab-btn.active {
+    color: #fff;
+    background: var(--primary);
+    box-shadow: 0 4px 12px var(--primary-glow);
+  }
+  
+  .tab-content { display: none; }
+  .tab-content.active {
+    display: block;
+    animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.8rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+  h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-left: 4px solid var(--primary);
+    padding-left: 0.75rem;
+  }
+  .card-sub {
+    font-size: 0.92rem;
+    color: var(--text-dim);
+    margin-bottom: 1.2rem;
+  }
+  
+  /* UI Details */
+  .highlight { color: var(--warn); font-weight: 600; }
+  .accent-text { color: var(--accent); font-weight: 600; }
+  
+  ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-dim); }
+  li { margin-bottom: 0.6rem; }
+  li strong { color: #fff; }
+  
+  .code-block {
+    padding: 1rem;
+    background: rgba(0,0,0,0.25);
+    border-radius: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    border: 1px solid var(--glass-border);
+    color: #a7f3d0;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 4px;
+    background: var(--primary-glow);
+    color: var(--primary);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+  }
+  .badge.success {
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+  
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .compare-grid.three-cols {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  @media(max-width: 800px) {
+    .compare-grid, .compare-grid.three-cols { grid-template-columns: 1fr; }
+  }
+  .compare-box {
+    background: var(--surface2);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .compare-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  
+  .btn-close {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--surface2);
+    border: 1px solid var(--glass-border);
+    color: var(--text);
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .btn-close:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 4px 15px var(--primary-glow);
+    transform: translateY(-1px);
+  }
+
+  /* Flow chart style */
+  .flow-step {
+    position: relative;
+    padding-left: 2rem;
+    margin-bottom: 1rem;
+    border-left: 2px dashed var(--glass-border);
+  }
+  .flow-step::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 8px var(--primary);
+  }
+  .flow-step.success::before {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .flow-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+  }
+  .flow-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-icon">📊</div>
+    <h1>問診サマリー画面 - AI分析ロジック</h1>
+    <p>問診結果を要約し、再現手順と技術的チェック項目に自動変換する</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(event, 'demo1')">💧 デモ1・2（泥はね）</button>
+    <button class="tab-btn" onclick="switchTab(event, 'demo3')">📈 デモ3（悪路振動）</button>
+    <button class="tab-btn" onclick="switchTab(event, 'normal')">🤖 通常AIモード</button>
+  </div>
+
+  <!-- Common Card: 目的と役割 -->
+  <div class="card">
+    <h2>1. 目的と役割</h2>
+    <p>これまでの共通問診・メーター特定・深掘り問診で得られた全データをAIが統合し、フロント受付から工場（エンジニア）へ渡すための「指示書（再現手順と作業申し送り）」を自動生成します。</p>
+    <p style="margin-top:0.8rem; font-size:0.88rem; color:var(--text-dim);">
+      エンジニアが「この通りに走れば再現できる」レベルの再現手順を出力することを最重視しています。また、かつての長い説明文章を廃止し、忙しい現場で一読して「やるべきこと」が把握できるよう、AIが要点のみを極めてシンプルかつ端的な箇条書きにフィルタリングして出力します。
+    </p>
+  </div>
+
+  <!-- TAB: Demo 1 -->
+  <div id="demo1" class="tab-content active">
+    <div class="card">
+      <h2>2. サマリー自動生成と判定ルール</h2>
+      <p class="card-sub">デモ1・2では、外面付着物による一時的遮蔽シナリオに基づく整備申し送りを生成します。</p>
+      
+      <div class="flow-step">
+        <div class="flow-title">条件検知</div>
+        <div class="flow-desc">雨天での対向車すれ違いによる泥はね ＋ メーター特定が「ソナーOFF・支援システム停止」 ＋ 洗車で消灯</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-title">AI判定結果</div>
+        <div class="flow-desc">物理的な汚れの付着による、ADASセンサー（超音波ソナーおよびフロントガラスカメラ等）の一時的遮蔽。</div>
+      </div>
+      <div class="flow-step success">
+        <div class="flow-title">整備指示の自動付加</div>
+        <div class="flow-desc">
+          ・<strong>診断機（テスター）の接続:</strong> 警告履歴があるため、ECUからDTC（ダイアグコード）およびRoB（車両挙動データ）を読み取って問診内容との整合性を確認。<br>
+          ・センサー外面の清掃および傷・割れの目視点検。<br>
+          ・（脱着が発生した場合の）エーミング（調整）作業の準備。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Demo 3 -->
+  <div id="demo3" class="tab-content">
+    <div class="card">
+      <h2>2. サマリー自動生成と判定ルール</h2>
+      <p class="card-sub">デモ3では、走行振動による一時的な電気瞬断（接触不良）シナリオに基づく整備申し送りを生成します。</p>
+      
+      <div class="flow-step">
+        <div class="flow-title">条件検知</div>
+        <div class="flow-desc">悪路（未舗装路や段差）走行時の揺れ ＋ メーター特定が「ソナーOFF・支援システム停止」 ＋ 段差を抜けてから自己復帰（消灯）</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-title">AI判定結果</div>
+        <div class="flow-desc">悪路走行時の振動・衝撃に起因する、特定センサー（クリアランスソナー・運転支援システム関連）配線ハーネスの接触不良（瞬断）、またはセンサー固定ブラケットのガタつき。</div>
+      </div>
+      <div class="flow-step success">
+        <div class="flow-title">整備指示の自動付加</div>
+        <div class="flow-desc">
+          ・<strong>診断機（テスター）の接続:</strong> 車両に残されたDTC（ダイアグコード）とRoB（車両挙動データ）を読み出し、警告点灯した瞬間の車速や電圧、入力G値などを照合。<br>
+          ・<strong>実車での加振点検（コネクタを揺すっての再現確認）</strong>。<br>
+          ・対象センサーのコネクタ端子抜け、ピンの広がり、アース線締め付け状態の目視・テスター点検。<br>
+          ・センサー脱着やブラケット修正時のADASエーミング（校正）作業指示。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Normal AI Mode -->
+  <div id="normal" class="tab-content">
+    <div class="card">
+      <h2>2. AIサマリー生成ルール（アルゴリズム）</h2>
+      <p class="card-sub">通常モードでは、熟練診断士のノウハウをルール化し、特定の条件に合致した場合に、AIがサマリーの末尾に技術的指示を自動挿入します。</p>
+      
+      <div class="compare-grid three-cols">
+        <div class="compare-box">
+          <div class="compare-title"><span class="badge">ルールA: 加振点検の自動指示</span></div>
+          <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:0.3rem;"><strong>[判定条件]</strong></p>
+          <p style="font-size:0.8rem; color:var(--text-dim); line-height:1.4; margin-bottom:0.5rem;">
+            (`道路` ＝ 荒れた道 OR デコボコした道) ＆ (`頻度` ＝ 稀に/時々/何度も) ＆ (`状態` ＝ 出たり消えたり)
+          </p>
+          <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:0.2rem;"><strong>[出力結果]</strong></p>
+          <p style="font-size:0.8rem; color:var(--accent); line-height:1.4;">
+            一時的な配線接触不良を疑うため、作業指示に「加振点検（配線揺すり等）」による再現試みを明記します。
+          </p>
+        </div>
+        
+        <div class="compare-box">
+          <div class="compare-title"><span class="badge success">ルールB: エーミングの自動指示</span></div>
+          <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:0.3rem;"><strong>[判定条件]</strong></p>
+          <p style="font-size:0.8rem; color:var(--text-dim); line-height:1.4; margin-bottom:0.5rem;">
+            ご用命やメーター特定で、ADAS関連（カメラ、レーダー、ソナーなど）の異常・機能停止と判別された場合。
+          </p>
+          <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:0.2rem;"><strong>[出力結果]</strong></p>
+          <p style="font-size:0.8rem; color:var(--accent); line-height:1.4;">
+            センサー脱着やブラケット修正を伴う可能性があるため、「エーミング（特定整備）作業が必要」と警告を自動挿入します。
+          </p>
+        </div>
+
+        <div class="compare-box">
+          <div class="compare-title"><span class="badge success" style="background:rgba(245, 158, 11, 0.15); color:var(--warn); border-color:rgba(245, 158, 11, 0.3);">ルールC: DTC/RoBの確認指示</span></div>
+          <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:0.3rem;"><strong>[判定条件]</strong></p>
+          <p style="font-size:0.8rem; color:var(--text-dim); line-height:1.4; margin-bottom:0.5rem;">
+            共通問診やメーター特定画面で、警告灯の点灯や、ディスプレイに警告メッセージが表示された形跡がある場合。
+          </p>
+          <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:0.2rem;"><strong>[出力結果]</strong></p>
+          <p style="font-size:0.8rem; color:var(--accent); line-height:1.4;">
+            車載ECUに車両の記録が残っているため、「DTC（ダイアグコード）およびRoB（車両挙動データ）の確認」の指示をサマリーに強制追加します。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align: center;">
+    <button class="btn-close" onclick="window.close()">解説を閉じる</button>
+  </div>
+</div>
+
+<script>
+  function switchTab(evt, tabId) {
+    const tabContents = document.getElementsByClassName("tab-content");
+    for (let i = 0; i < tabContents.length; i++) {
+      tabContents[i].classList.remove("active");
+    }
+    const tabBtns = document.getElementsByClassName("tab-btn");
+    for (let i = 0; i < tabBtns.length; i++) {
+      tabBtns[i].classList.remove("active");
+    }
+    document.getElementById(tabId).classList.add("active");
+    evt.currentTarget.classList.add("active");
+  }
+</script>
+</body>
+</html>

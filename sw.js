@@ -1,11 +1,16 @@
 // Service Worker — 振動・異音問診サポートツール
-const CACHE_NAME = 'monshin-tool-v2.9';
+const CACHE_NAME = 'monshin-tool-v3.8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
+  './logic_complaint.html',
+  './logic_intake.html',
+  './logic_meter.html',
+  './logic_deepdive.html',
+  './logic_summary.html',
   'https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap'
 ];
 
