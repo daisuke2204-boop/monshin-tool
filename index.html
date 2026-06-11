@@ -284,7 +284,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <div id="s_api" class="screen active center">
 <div class="content-wrap" style="max-width:460px;text-align:center">
   <div style="font-size:2.6rem;margin-bottom:.3rem">🔧</div>
-  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.3</span></h1>
+  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.5</span></h1>
   <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.8rem;line-height:1.6">AIが深掘り質問を自動生成し<br>再現可能なレベルの問診をサポートします</p>
   <div class="glass-card" style="text-align:left">
     <div class="input-group">
@@ -309,15 +309,15 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 </div>
 </div>
 
-<!-- ===== Screen 2: 訴え入力 ===== -->
+<!-- ===== Screen 2: ご用命入力 ===== -->
 <div id="s_complaint" class="screen">
 <div class="content-wrap">
   <div class="stepper" id="stepper"></div>
-  <h2 class="page-title">📝 お客様の訴え</h2>
-  <p class="page-sub">お客様の言葉をできるだけそのまま記録してください</p>
+  <h2 class="page-title">📝 お客様のご用命</h2>
+  <p class="page-sub">お客様の言葉をできるだけそのまま記録してください（お客様の言葉どおりに入力）</p>
   <div class="glass-card">
     <div class="input-group">
-      <label>訴え内容</label>
+      <label>ご用命内容 <span style="color:var(--text-muted); font-size:0.75rem; font-weight:normal">（お客様の言葉どおりに入力）</span></label>
       <textarea id="complaintInput" rows="3" placeholder="例: 曲がり角で普段と違う音がするようになった"></textarea>
     </div>
     <label style="font-size:.78rem;color:var(--text-dim);display:block;margin-bottom:.4rem">入力例（クリックで挿入）</label>
@@ -365,6 +365,12 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div id="intakeAcSection" style="margin-top:1rem; display:none;">
     <div class="sec-header"><div class="num">❄️</div><h3>エアコンの詳細</h3></div>
     <div id="intakeAc"></div>
+  </div>
+
+  <!-- その他 -->
+  <div id="intakeOtherSection" style="margin-top:1rem">
+    <div class="sec-header"><div class="num">4</div><h3>その他</h3></div>
+    <div id="intakeOther"></div>
   </div>
 
   <div class="nav-bar" style="margin-top:1.5rem">
@@ -522,6 +528,10 @@ const INTAKE_DETAIL = [
     options:['だんだんひどくなっている','変わらない','良くなっている','日によって（または乗る人によって）違う','わからない'] },
 ];
 
+const INTAKE_OTHER = [
+  { id:'i_other_remarks', label:'他に気になる点・お気づきになられた点はございますか？', type:'text', required:false }
+];
+
 // ══════════════════════════════════════════════════════════════
 //  状態
 // ══════════════════════════════════════════════════════════════
@@ -659,7 +669,7 @@ function hasMeterDisplay() {
 function getSteps() {
   const showMeterScreen = (hasMeterDisplay() && meterMessages.length > 0) || (hasWarningDisplay() && warningLights.length > 0);
   const steps = [
-    { id:'s_complaint', label:'訴え入力', n:'1' },
+    { id:'s_complaint', label:'ご用命入力', n:'1' },
     { id:'s_intake',    label:'共通問診',  n:'2' },
   ];
   if (showMeterScreen) {
@@ -724,7 +734,30 @@ function startDemoMode() {
   isDemoMode = true;
   apiKey = 'demo-key';
   selectedModel = 'gemini-2.5-flash';
-  document.getElementById('complaintInput').value = 'ブレーキを踏むとキーキー音がする';
+  
+  // 1. ご用命入力（初期値）
+  document.getElementById('complaintInput').value = 'メーターに警告文が出た。今は消えているが不安なので見てほしい。';
+  
+  // 2. 共通問診の初期回答を設定
+  intakeAnswers = {
+    'i_onset': '1ヶ月以内',
+    'i_frequency': '稀に（再現しにくい）',
+    'i_weather': ['雨'],
+    'i_trigger': '対向車とすれ違った',
+    'i_location_place': ['一般道（街乗り・郊外）'],
+    'i_traffic': ['渋滞していない（スムーズに流れている）とき'],
+    'i_road': ['荒れた道（砂利道やデコボコ道など）'],
+    'i_symptom_type': ['メーターに警告やメッセージが出た'],
+    'i_speed': ['普通の速さで走っているとき（30〜60km/h）'],
+    'i_engine_temp': ['エンジンが十分に温まっているとき（しばらく走った後）'],
+    'i_operation': ['スピードを一定に保って走っているとき'],
+    'i_occurrence': '一度だけ発生した',
+    'i_warning_light': ['点灯していたが今は消えている'],
+    'i_meter_message': ['文章（メッセージ）が表示された'],
+    'i_trend': 'わからない',
+    'i_other_remarks': '対向車とすれ違ったとき泥をはねられて、運転席の前あたりにかかった直後、警告文が出た'
+  };
+  intakeOtherTexts = {};
   
   // デモ用のマスターロード
   if (meterMessages.length === 0) loadMeterMessages();
@@ -739,7 +772,7 @@ function startDemoMode() {
 // ══════════════════════════════════════════════════════════════
 function goIntake() {
   complaint = document.getElementById('complaintInput').value.trim();
-  if (!complaint) { showToast('お客様の訴え内容を入力してください'); return; }
+  if (!complaint) { showToast('お客様のご用命内容を入力してください'); return; }
   renderIntake();
   go('s_intake');
 }
@@ -749,6 +782,7 @@ function renderIntake() {
   renderQGroup('intakeBasic', INTAKE_BASIC, 'intake');
   renderQGroup('intakeCondition', INTAKE_CONDITION, 'intake');
   renderQGroup('intakeDetail', INTAKE_DETAIL.filter(q => !q.showIf), 'intake');
+  renderQGroup('intakeOther', INTAKE_OTHER, 'intake');
   // NVH・エアコンの条件付き質問の表示更新
   updateNvhQuestions();
   updateAcQuestions();
@@ -830,11 +864,18 @@ function renderQ(q, prefix) {
   let inputHtml = '';
   let otherTaHtml = '';
 
+  const answers = prefix === 'intake' ? intakeAnswers : deepdiveAnswers;
+  const currentAns = answers[q.id];
+
   const hasOther = (q.type === 'radio' || q.type === 'checkbox') && q.options && q.options.some(o => o.includes('その他'));
   if (hasOther) {
     const val = (prefix === 'intake' ? intakeOtherTexts[q.id] : deepOtherTexts[q.id]) || '';
+    const hasOtherSelected = Array.isArray(currentAns)
+      ? currentAns.some(v => v.includes('その他'))
+      : (typeof currentAns === 'string' && currentAns.includes('その他'));
+    const displayStyle = hasOtherSelected ? 'block' : 'none';
     otherTaHtml = `
-      <div id="other_ta_container_${prefix}_${q.id}" style="display:none; margin-top:0.5rem;">
+      <div id="other_ta_container_${prefix}_${q.id}" style="display:${displayStyle}; margin-top:0.5rem;">
         <textarea id="other_ta_${prefix}_${q.id}" placeholder="具体的な内容を記入してください" oninput="${prefix}SetOtherText('${q.id}',this.value)">${esc(val)}</textarea>
       </div>`;
   }
@@ -842,15 +883,19 @@ function renderQ(q, prefix) {
   if (q.type === 'radio') {
     inputHtml = '<div class="option-grid">' + q.options.map((o,i) => {
       const uid = `${prefix}_${q.id}_${i}`;
-      return `<div class="opt-item"><input type="radio" name="${prefix}_${q.id}" id="${uid}" value="${esc(o)}" onchange="${prefix}Set('${q.id}',this.value)"><label for="${uid}">${esc(o)}</label></div>`;
+      const checked = currentAns === o ? 'checked' : '';
+      return `<div class="opt-item"><input type="radio" name="${prefix}_${q.id}" id="${uid}" value="${esc(o)}" ${checked} onchange="${prefix}Set('${q.id}',this.value)"><label for="${uid}">${esc(o)}</label></div>`;
     }).join('') + '</div>' + otherTaHtml;
   } else if (q.type === 'checkbox') {
     inputHtml = '<div class="option-grid">' + q.options.map((o,i) => {
       const uid = `${prefix}_${q.id}_${i}`;
-      return `<div class="opt-item"><input type="checkbox" name="${prefix}_${q.id}" id="${uid}" value="${esc(o)}" onchange="${prefix}SetCb('${q.id}')"><label for="${uid}">${esc(o)}</label></div>`;
+      const isChecked = Array.isArray(currentAns) ? currentAns.includes(o) : (currentAns === o);
+      const checked = isChecked ? 'checked' : '';
+      return `<div class="opt-item"><input type="checkbox" name="${prefix}_${q.id}" id="${uid}" value="${esc(o)}" ${checked} onchange="${prefix}SetCb('${q.id}')"><label for="${uid}">${esc(o)}</label></div>`;
     }).join('') + '</div>' + otherTaHtml;
   } else {
-    inputHtml = `<textarea id="ta_${prefix}_${q.id}" placeholder="自由記述" oninput="${prefix}Set('${q.id}',this.value)"></textarea>`;
+    const val = currentAns || '';
+    inputHtml = `<textarea id="ta_${prefix}_${q.id}" placeholder="自由記述" oninput="${prefix}Set('${q.id}',this.value)">${esc(val)}</textarea>`;
   }
 
   return `<div class="q-card" id="qc_${prefix}_${q.id}">${`<div class="q-label">${esc(q.label)}${reqMark}</div>`}${hintHtml}${inputHtml}${reasonHtml}</div>`;
@@ -935,7 +980,7 @@ function intakeSetCb(id) {
 // ── 共通問診 → 次の画面への遷移ロジック ──
 function goNextFromIntake() {
   // 必須チェック
-  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL.filter(q => !q.showIf)];
+  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL.filter(q => !q.showIf), ...INTAKE_OTHER];
   // NVH・エアコン表示中ならそれぞれもチェック対象に
   const symptoms = intakeAnswers['i_symptom_type'] || [];
   const hasNvh = Array.isArray(symptoms)
@@ -1080,38 +1125,93 @@ async function requestDeepDive() {
     setTimeout(() => {
       deepdiveResult = {
         "suspected_faults": [
-          { "name": "ブレーキパッドの摩耗（ウェアインジケータ接触）", "confidence": "高", "reason": "制動時に高い金属音（キーキー）が発生しているため、パッド残量警告プレートがローターに接触している可能性が高い。" },
-          { "name": "ブレーキパッドの消音プレートのグリス切れ", "confidence": "中", "reason": "パッド裏面の消音グリスが切れ、ピストンとの間で共鳴してキーキー音が発生している。" }
+          {
+            "name": "運転支援システム（PCS、LDA、LTA、レーダークルーズ、PKSBなど）のセンサー（カメラ、レーダー, ソナー）の一時的な機能停止または異常",
+            "confidence": "高",
+            "reason": "お客様のご用命、共通問診の回答、特定されたメーター表示メッセージ（運転支援システム機能停止）、および特定された警告灯（クリアランスソナーOFF表示灯）から、運転支援システム関連のセンサーに一時的な異常が発生した可能性が高いと推定されます。特に、対向車とすれ違った際に泥をはねられた直後に発生したという情報が、センサーへの付着物による一時的な機能停止を示唆しています。"
+          },
+          {
+            "name": "クリアランスソナーの異常または一時的な機能停止",
+            "confidence": "高",
+            "reason": "クリアランスソナーOFF表示灯が点灯したと特定されており、これはクリアランスソナーシステム自体に異常があるか、一時的に機能が停止したことを直接示しています。泥の付着が原因である可能性も考えられます。"
+          },
+          {
+            "name": "配線やコネクタの接触不良（特にセンサー関連）",
+            "confidence": "中",
+            "reason": "荒れた道や泥はねの状況で発生していることから、外部からの衝撃や水分、振動などにより、センサー関連の配線やコネクタに一時的な接触不良が発生した可能性も考えられます。ただし、今回は泥はねという明確なきっかけがあるため、付着物の可能性が高いと見ています。"
+          }
         ],
         "followup_questions": [
           {
             "id": "fu_0",
-            "question": "音がするのは、ブレーキを軽く踏んだときですか？それとも強く踏んだときですか？",
-            "type": "radio",
-            "options": ["軽く踏んだときだけ鳴る", "強く踏んだときだけ鳴る", "踏み込み量に関わらず常に鳴る", "その他（具体的に記述）"],
-            "reason": "踏み込み量による音の変化を確認し、パッドとローターの接触状態を推定するため。"
+            "question": "警告文が表示されたのは、具体的にいつ頃（日付や時間帯、昼夜など）でしたか？できるだけ詳しく教えていただけますでしょうか。",
+            "type": "text",
+            "options": [],
+            "reason": "日付や発生時間帯（昼夜）を確認し、車両ログ（ダイアグデータ）の記録時間やカメラ等の作動条件と照合・特定するため。"
           },
           {
             "id": "fu_1",
-            "question": "バック（後退）しながらブレーキを踏んだときも、同じように音がしますか？",
+            "question": "対向車とすれ違った際に泥をはねられたとのことですが、泥はねは運転席のどのあたりにかかりましたか？（例：フロントガラス、バンパー、ヘッドライト、フェンダーなど）",
             "type": "radio",
-            "options": ["バックのときも鳴る", "前進のときだけ鳴る", "わからない"],
-            "reason": "進行方向による音の発生変化を確認し、パッドのガタや偏摩耗を特定するため。"
+            "options": [
+              "フロントガラス（運転席側）",
+              "フロントバンパー（運転席側）",
+              "ヘッドライト（運転席側）",
+              "フロントフェンダー（運転席側）",
+              "ドアミラー（運転席側）",
+              "その他（具体的に記入）"
+            ],
+            "reason": "泥の付着部位を特定し、どのセンサー（フロントカメラ、コーナーソナー等）に一時的な障害が起きたかを絞り込むため。"
           },
           {
             "id": "fu_2",
-            "question": "朝一番など、走り始めの冷えているときに特に音が大きいと感じますか？",
+            "question": "警告文が表示された後、どのような状況で警告文やクリアランスソナーOFF表示灯が消えましたか？（例：洗車後、雨が止んだ後、しばらく走行した後、エンジンを再始動した後、自然に消えたなど）",
             "type": "radio",
-            "options": ["走り始めが特に大きい", "しばらく走って温まると鳴る", "冷熱に関係なく鳴る"],
-            "reason": "ローターのサビや温度依存性（ブレーキ鳴き）によるものかを判別するため。"
+            "options": [
+              "洗車した後",
+              "雨が止んだ後",
+              "泥が乾いた後",
+              "しばらく走行した後",
+              "エンジンを停止し、再始動した後",
+              "自然に消えた（特に何もしていない）",
+              "その他（具体的に記入）"
+            ],
+            "reason": "警告文が消去されたきっかけ（洗浄、時間の経過、システムの再起動など）から、一時的な汚れによる誤作動かを判別するため。"
+          },
+          {
+            "id": "fu_3",
+            "question": "「荒れた道（砂利道やデコボコ道など）」で発生したとのことですが、その荒れた道はどの程度の期間、走行していましたか？また、泥はねはその荒れた道で発生しましたか？",
+            "type": "text",
+            "options": [],
+            "reason": "荒れた道における振動の影響度や、泥はねのタイミングとの前後関係を確認し、配線不良や泥付着の状況を詳しく探るため。"
+          },
+          {
+            "id": "fu_4",
+            "question": "警告文が表示されたのは一度だけとのことですが、その後、同様の状況（雨天、対向車とのすれ違い、荒れた道走行など）で再度警告文が表示されたことはありませんか？",
+            "type": "radio",
+            "options": [
+              "はい、一度もありません",
+              "いいえ、一度だけですが似たような状況で発生しました",
+              "いいえ、複数回発生しています。"
+            ],
+            "reason": "再現頻度を確認し、一時的な一過性の要因（汚れなど）によるものか、再現性のある恒久的なシステム不具合（ハード故障）かを判断するため。"
           }
         ],
         "interviewer_tips": [
-          "ブレーキパッドの残量をホイールの間から目視できる場合は、あらかじめ残量を確認しておくとスムーズです。"
+          "お客様が泥はねの状況を詳しく思い出せるように、当時の天候、道路状況、対向車の種類（大型車か普通車かなど）を具体的に尋ねてみてください。",
+          "警告文が消えた状況について、お客様が「自然に消えた」と回答された場合でも、その間に何か車の操作（エンジン停止・再始動、走行距離など）があったかを確認してみてください。",
+          "お客様が不安に感じている点に寄り添い、丁寧な言葉遣いを心がけてください。"
         ]
       };
       
-      deepdiveAnswers = {};
+      deepdiveAnswers = {
+        'fu_0': '２週間前の日曜日、１４時頃',
+        'fu_1': 'フロントバンパー（運転席側）',
+        'fu_2': 'しばらく走行した後',
+        'fu_3': '１５分ほど走行。泥はねは荒れた道。',
+        'fu_4': 'はい、一度もありません'
+      };
+      
       renderDeepDive();
       go('s_deepdive');
       hideLoading();
@@ -1120,7 +1220,7 @@ async function requestDeepDive() {
   }
 
   // 回答テキスト化（NVH条件付き質問も含める）
-  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL];
+  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL, ...INTAKE_OTHER];
   const answersText = allIntake.map(q => {
     let a = getFormattedAnswer(q.id, 'intake');
     if (a === '') a = '（未回答）';
@@ -1183,9 +1283,9 @@ ${msgList}`;
   }
 
   const prompt = `あなたは自動車 of 故障診断のエキスパートです。
-お客様の訴えと共通問診の結果を分析し、不具合の再現条件を正確に特定するための「深掘り質問」を生成してください。
+お客様のご用命と共通問診の結果を分析し、不具合の再現条件を正確に特定するための「深掘り質問」を生成してください。
  
-【お客様の訴え】
+【お客様のご用命】
 ${complaint}
  
 【共通問診の回答】
@@ -1263,7 +1363,7 @@ function renderDeepDive() {
 
   ac.innerHTML = `
     <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:.6rem">🤖 AI分析結果</h3>
-    <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様の訴え：「${esc(complaint)}」</div>
+    <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
     ${faults}
     ${tips ? '<div style="margin-top:.7rem"><div style="font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.35rem">📌 問診者へのアドバイス</div>' + tips + '</div>' : ''}
   `;
@@ -1304,28 +1404,29 @@ async function generateSummary() {
     // デモ用の固定サマリー（API呼び出しをせず1.5秒ローディング後に描画）
     setTimeout(() => {
       summaryText = `■ 症状の概要
-ブレーキペダル踏み込み時に、足元付近より「キーキー」という高い金属音が発生。
+雨天時、対向車からの泥はね直後、運転席側フロントバンパー付近のクリアランスソナーが一時的に機能停止し、メーターに警告文とクリアランスソナーOFF表示灯が点灯。しばらく走行後に消灯。
 
 ■ 再現手順（重要！）
-1. 一般道を時速40km/h程度で走行する。
-2. ブレーキペダルを軽く踏み込んで減速する。
-3. 減速中に足元（前輪付近）から「キーキー」と金属が擦れ合う音が発生することを確認する。
+1. 雨天時、一般道（荒れた道）を30〜60km/hで定速走行。
+2. 対向車とすれ違い、運転席側フロントバンパーに泥が付着する状況を再現。
+3. メーターの警告文とクリアランスソナーOFF表示灯の点灯有無を確認。
 
 ■ 推定される不具合と根拠
-- ブレーキパッドの摩耗: パッド磨耗を警告する金属プレートがディスクローターに接触している可能性が高い。
-- ブレーキ鳴き（グリス切れ）: パッド裏面の消音シムにグリスが減少し共振している可能性。
+- クリアランスソナーの一時的な機能停止：クリアランスソナーOFF表示灯点灯、泥はね直後の発生。
+- 運転支援システム（センサー）の一時的な異常：メーターに警告文表示、泥はね直後の発生。
 
 ■ きっかけ・原因の推定
-長期間の走行に伴うブレーキパッドの経年摩耗、またはディスクローター表面のサビや汚れ。
+- 運転席側フロントバンパー付近のクリアランスソナーへの泥付着。
+- 雨天、荒れた道での走行。
 
 ■ 再発防止アドバイス
-- ブレーキパッドは消耗品であるため、定期的な点検と早期交換を推奨。
-- 摩耗を放置するとディスクローター自体にキズが入り、追加の部品交換費用が発生することを説明。
+- センサー部に泥や汚れが付着した場合は、速やかに清掃してください。
+- 特に雨天時や荒れた道を走行した後は、センサー部の確認をお勧めします。
 
 ■ エンジニアへの申し送り
-- 左右前輪のブレーキパッド残量を測定（インナー／アウターそれぞれ確認）。
-- ディスクローター表面の偏摩耗やレコード盤状のキズの有無を確認。
-- パッドの残量が十分な場合は、シムを取り外して清掃のうえ、耐熱ブレーキグリスの再塗布を実施。`;
+- 運転席側フロントバンパーのクリアランスソナー周辺の泥汚れや損傷を確認。
+- センサーおよび関連配線のコネクタ接触不良の有無を『加振点検（配線揺すり等）』で確認。
+- クリアランスソナーの部品脱着・交換が予想される場合、『エーミング（校正）作業が必要』。`;
 
       renderSummary(summaryText);
       go('s_summary');
@@ -1334,7 +1435,7 @@ async function generateSummary() {
     return;
   }
 
-  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL];
+  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL, ...INTAKE_OTHER];
   const intakeText = allIntake.map(q => {
     let a = getFormattedAnswer(q.id, 'intake');
     if (a===undefined||a==='') a='（未回答）';
@@ -1371,7 +1472,7 @@ async function generateSummary() {
 問診データをもとに、エンジニアが「この通りにやれば不具合を再現できる」レベルの具体的なサマリーを作成してください。
 ※重要：冗長な文章表現は避け、各項目は箇条書きを基本として、要点のみを極めてシンプルかつ端的に記述してください（地の文は最小限にすること）。マークダウン記法は使わず、プレーンテキストで出力してください。
 
-【お客様の訴え（原文）】
+【お客様のご用命（原文）】
 ${complaint}
 
 【共通問診の回答】
@@ -1386,7 +1487,7 @@ ${faultsText || '（なし）'}
 以下のセクションに分けて記載してください:
 
 ■ 症状の概要
-お客様の訴えと問診を統合した症状の概要（1〜2行で簡潔・端的に）
+お客様のご用命と問診を統合した症状 of 概要（1〜2行で簡潔・端的に）
 
 ■ 再現手順（重要！）
 再現するための具体的な手順を、簡潔な番号付き箇条書き（手順は極力短く要点のみ、ステップ数も最小限）で記載してください。
@@ -1440,7 +1541,7 @@ function renderSummary(text) {
     };
     const sections = ('\n' + text).split(/\n■\s*/).filter(s=>s.trim());
 
-    let html = `<div class="summary-section"><h4>👤 お客様の訴え（原文）</h4>
+    let html = `<div class="summary-section"><h4>👤 お客様のご用命（原文）</h4>
       <div style="padding:.5rem .7rem;border-radius:8px;background:var(--surface2);font-size:.85rem;line-height:1.6">「${esc(complaint)}」</div></div>`;
 
     sections.forEach(sec => {
@@ -1451,7 +1552,22 @@ function renderSummary(text) {
         if (!title) return;
         const body = lines.slice(1).join('\n').trim();
         const icon = Object.entries(icons).find(([k])=>title.includes(k))?.[1]||'📌';
-        html += `<div class="summary-section"><h4>${icon} ${esc(title)}</h4><div class="summary-content">${esc(body)}</div></div>`;
+        
+        let imgHtml = '';
+        if (isDemoMode) {
+          if (title.includes('症状の概要')) {
+            imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="症状の概要"></div>';
+          } else if (title.includes('推定される不具合と根拠')) {
+            imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/03.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="推定される不具合と根拠"></div>';
+          } else if (title.includes('再発防止アドバイス')) {
+            imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/05.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="再発防止アドバイス"></div>';
+          } else if (title.includes('エンジニアへの申し送り')) {
+            imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/06.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り"></div>';
+            imgHtml += '<div style="margin-top:0.8rem;"><img src="./summary_image/06_02.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り2"></div>';
+          }
+        }
+        
+        html += `<div class="summary-section"><h4>${icon} ${esc(title)}</h4><div class="summary-content">${esc(body)}${imgHtml}</div></div>`;
       } catch(secErr) {
         console.error('[renderSummary] Section parse error:', secErr, sec);
       }
@@ -1465,7 +1581,7 @@ function renderSummary(text) {
 }
 
 function copySummary() {
-  navigator.clipboard.writeText(`【お客様の訴え】\n${complaint}\n\n${summaryText}`).then(
+  navigator.clipboard.writeText(`【お客様のご用命】\n${complaint}\n\n${summaryText}`).then(
     ()=>showToast('コピーしました','info'), ()=>showToast('コピー失敗'));
 }
 
