@@ -357,7 +357,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <div id="s_api" class="screen active center">
 <div class="content-wrap" style="max-width:460px;text-align:center">
   <div style="font-size:2.6rem;margin-bottom:.3rem">🔧</div>
-  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.6</span></h1>
+  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.8</span></h1>
   <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.8rem;line-height:1.6">AIが深掘り質問を自動生成し<br>再現可能なレベルの問診をサポートします</p>
   <div class="glass-card" style="text-align:left">
     <div class="input-group">
@@ -647,6 +647,14 @@ let isDemoMode = false;   // デモモードフラグ
 let isDemoMode2 = false;  // デモモード2フラグ
 let isDemoMode3 = false;  // デモモード3フラグ
 
+function useAccordionUI() {
+  // デモ1（isDemoModeが真で、かつデモ2・3がいずれも偽）のみアコーディオンUIを適用しない
+  if (isDemoMode && !isDemoMode2 && !isDemoMode3) {
+    return false;
+  }
+  return true;
+}
+
 // ══════════════════════════════════════════════════════════════
 //  Googleスプレッドシートからメーター表示・警告灯マスターを読み込む
 // ══════════════════════════════════════════════════════════════
@@ -740,6 +748,22 @@ function toggleAccordion(id) {
   if (parent) {
     if (isOpening) {
       parent.classList.add('active');
+      
+      // アコーディオンUI有効時、同じコンテナ（グループ）配下のアコーディオンをいっきに展開する
+      if (useAccordionUI()) {
+        const groupContainer = parent.parentElement;
+        // 共通問診（intake...）、NVH（intakeNvh）、または深掘り問診（deepdiveForm）の場合
+        if (groupContainer && (groupContainer.id.startsWith('intake') || groupContainer.id === 'intakeNvh' || groupContainer.id === 'deepdiveForm')) {
+          const bodies = groupContainer.querySelectorAll('.accordion-body');
+          bodies.forEach(body => {
+            if (body.style.display === 'none') {
+              body.style.display = 'block';
+              const p = body.closest('.accordion');
+              if (p) p.classList.add('active');
+            }
+          });
+        }
+      }
     } else {
       parent.classList.remove('active');
     }
@@ -918,16 +942,7 @@ function startDemoMode2() {
   if (meterMessages.length === 0) loadMeterMessages();
   if (warningLights.length === 0) loadWarningLights();
   
-  // ご用命画面のアコーディオン化
-  const card = document.getElementById('complaintCard');
-  if (card) {
-    card.classList.add('accordion');
-    document.getElementById('complaintHeaderWrap').style.display = 'block';
-    document.getElementById('complaintBody').className = 'accordion-body';
-    document.getElementById('complaintBody').style.display = 'none'; // 初期状態は非表示
-    document.getElementById('exampleLabel').style.display = 'none';
-    document.getElementById('exampleChips').style.display = 'none';
-  }
+  // ご用命画面のアコーディオン化は廃止（常に通常表示）
   
   go('s_complaint');
   showToast('デモモード2（各画面内アコーディオンUI）で起動しました', 'info');
@@ -1106,7 +1121,7 @@ function renderQ(q, prefix) {
     inputHtml = `<textarea id="ta_${prefix}_${q.id}" placeholder="自由記述" oninput="${prefix}Set('${q.id}',this.value)">${esc(val)}</textarea>`;
   }
 
-  if (isDemoMode2) {
+  if (useAccordionUI()) {
     const contentId = `ac_content_${prefix}_${q.id}`;
     let ansSummaryText = '';
     const formatted = getFormattedAnswer(q.id, prefix);
@@ -1280,26 +1295,84 @@ function renderWarningSelection() {
 
   container.innerHTML = html;
 
-  if (isDemoMode2) {
-    const warningSec = document.getElementById('warningLightSection');
-    if (warningSec && !warningSec.classList.contains('accordion')) {
-      warningSec.classList.add('accordion');
-      const hdr = warningSec.querySelector('.sec-header');
-      if (hdr) {
-        hdr.className = 'accordion-header';
-        hdr.onclick = () => toggleAccordion('warningGridWrap');
-        hdr.innerHTML = `<div class="num">🚨</div><h3>点灯していた警告灯（ランプ・マーク）</h3><span class="accordion-icon">▼</span>`;
-      }
-      // グリッドをラップする
-      container.outerHTML = `<div id="warningGridWrap" class="accordion-body" style="display:none;">${container.outerHTML}</div>`;
-    }
-  }
+  // 警告灯セクション自体のアコーディオン化は廃止（常に開いた状態で通常表示）
 }
 
 function updateWarningSelection() {
   const chk = document.querySelectorAll('input[name="warning_select"]:checked');
   intakeAnswers['i_warning_selected'] = Array.from(chk).map(c => c.value);
   if (!intakeAnswers['i_warning_selected'].length) delete intakeAnswers['i_warning_selected'];
+  
+  autoExpandMeterCategories();
+}
+
+function autoExpandMeterCategories() {
+  console.log("[autoExpandMeterCategories] Triggered. useAccordionUI:", useAccordionUI());
+  if (!useAccordionUI()) return;
+  
+  // チェックされている警告灯を取得し、改行コードを除去してトリミング
+  const checkedWarns = Array.from(document.querySelectorAll('input[name="warning_select"]:checked'))
+    .map(c => c.value.replace(/\r?\n/g, '').trim());
+  console.log("[autoExpandMeterCategories] Checked warnings (cleaned):", checkedWarns);
+  
+  // 警告灯とメッセージカテゴリの関係マッピング (Excelデータに基づく)
+  const WARN_TO_CAT_MAP = {
+    "ブレーキ警告灯（警告ブザー）": ["ブレーキシステム"],
+    "高水温警告灯（警告ブザー）": ["エンジン"],
+    "充電警告灯（警告ブザー）": ["補機バッテリー", "シフトシステム", "エンジン"],
+    "油圧警告灯（警告ブザー）": ["エンジン"],
+    "ハイブリッドシステム過熱警告灯（警告ブザー）": ["ハイブリッドシステム"],
+    "エンジン警告灯（警告ブザー）": ["エンジン", "ハイブリッドシステム"],
+    "SRSエアバッグ／プリテンショナー警告灯（警告ブザー）": [],
+    "ポップアップフード警告灯（警告ブザー）": [],
+    "ABS＆ブレーキアシスト警告灯（警告ブザー）": ["ブレーキシステム"],
+    "ペダル誤操作警告灯（警告ブザー）※ブザー鳴る": ["シフト操作アドバイス", "運転操作アドバイス", "ブレーキ操作アドバイス"],
+    "ペダル誤操作警告灯（警告ブザー）※ブザー鳴らない": ["シフト操作アドバイス", "運転操作アドバイス", "ブレーキ操作アドバイス"],
+    "パワーステアリング警告灯（警告ブザー）": ["ハイブリッドシステム"],
+    "燃料残量警告灯": [],
+    "運転席・助手席シートベルト非着用警告灯（警告ブザー）": [],
+    "リヤ席シートベルト非着用警告灯（警告ブザー）": [],
+    "PCS警告灯（警告ブザー）": ["運転支援システム (Toyota Safety Sense等)", "運転支援システム", "運転支援システム (センサー類)"],
+    "LTA表示灯（警告ブザー）": ["運転支援システム (Toyota Safety Sense等)", "運転支援システム", "運転支援システム (センサー類)"],
+    "LDA表示灯（警告ブザー）": ["運転支援システム (Toyota Safety Sense等)", "運転支援システム", "運転支援システム (センサー類)"],
+    "PDA表示灯（警告ブザー）": ["運転支援システム (Toyota Safety Sense等)", "運転支援システム", "運転支援システム (センサー類)"],
+    "クルーズコントロール表示灯（警告ブザー）": ["運転支援システム (Toyota Safety Sense等)", "運転支援システム", "運転支援システム (クルーズコントロール)"],
+    "レーダークルーズコントロール表示灯（警告ブザー）": ["運転支援システム (Toyota Safety Sense等)", "運転支援システム", "運転支援システム (クルーズコントロール)"],
+    "運転支援情報表示灯": ["運転支援システム (Toyota Safety Sense等)", "運転支援システム", "運転支援システム (センサー類)"],
+    "クリアランスソナーOFF表示灯（警告ブザー）": ["運転支援システム (Toyota Safety Sense等)", "運転支援システム (センサー類)"],
+    "スリップ表示灯": [],
+    "パーキングブレーキ表示灯": [],
+    "ブレーキホールド作動表示灯（警告ブザー）": []
+  };
+
+  // 展開すべきメッセージカテゴリのセットを抽出
+  const categoriesToExpand = new Set();
+  checkedWarns.forEach(warnName => {
+    const cats = WARN_TO_CAT_MAP[warnName] || [];
+    console.log(`[autoExpandMeterCategories] Warning "${warnName}" maps to cats:`, cats);
+    cats.forEach(cat => categoriesToExpand.add(cat));
+  });
+  console.log("[autoExpandMeterCategories] Expanded categories set:", Array.from(categoriesToExpand));
+  
+  // メッセージカテゴリのアコーディオンを取得
+  const catCards = document.querySelectorAll('#meterCategoryList .glass-card.accordion');
+  console.log("[autoExpandMeterCategories] Found accordion cards:", catCards.length);
+  
+  catCards.forEach(card => {
+    const cardCategory = card.dataset.category || "";
+    const body = card.querySelector('.accordion-body');
+    const shouldExpand = categoriesToExpand.has(cardCategory);
+    console.log(`[autoExpandMeterCategories] Card Category: "${cardCategory}", shouldExpand: ${shouldExpand}, hasBody: ${!!body}`);
+    if (!body) return;
+    
+    if (shouldExpand) {
+      body.style.display = 'block';
+      card.classList.add('active');
+    } else {
+      body.style.display = 'none';
+      card.classList.remove('active');
+    }
+  });
 }
 
 // ── メーター表示特定画面の描画 ──
@@ -1317,8 +1390,8 @@ function renderMeterSelection() {
   let html = '';
   Object.entries(categories).forEach(([cat, msgs], catIdx) => {
     const contentId = `meter_cat_body_${catIdx}`;
-    if (isDemoMode2) {
-      html += `<div class="glass-card accordion" style="margin-bottom:.7rem">`;
+    if (useAccordionUI()) {
+      html += `<div class="glass-card accordion" style="margin-bottom:.7rem" data-category="${esc(cat)}">`;
       html += `<div class="accordion-header" onclick="toggleAccordion('${contentId}')">`;
       html += `<div class="sec-header" style="margin-bottom:0; border-bottom:none; padding-bottom:0;"><div class="num" style="font-size:.6rem">📟</div><h3>${esc(cat)}</h3><span class="count">${msgs.length}件</span></div>`;
       html += `<span class="accordion-icon">▼</span></div>`;
@@ -1335,7 +1408,7 @@ function renderMeterSelection() {
       });
       html += '</div></div></div>';
     } else {
-      html += `<div class="glass-card" style="margin-bottom:.7rem">`;
+      html += `<div class="glass-card" style="margin-bottom:.7rem" data-category="${esc(cat)}">`;
       html += `<div class="sec-header" style="margin-bottom:.5rem"><div class="num" style="font-size:.6rem">📟</div><h3>${esc(cat)}</h3><span class="count">${msgs.length}件</span></div>`;
       html += '<div class="option-grid">';
       msgs.forEach((m, idx) => {
@@ -1353,24 +1426,8 @@ function renderMeterSelection() {
 
   container.innerHTML = html;
 
-  if (isDemoMode2) {
-    const meterSec = document.getElementById('meterMessageSection');
-    if (meterSec && !meterSec.classList.contains('accordion')) {
-      meterSec.classList.add('accordion');
-      const hdr = meterSec.querySelector('.sec-header');
-      if (hdr) {
-        hdr.className = 'accordion-header';
-        hdr.onclick = () => toggleAccordion('meterMessageWrap');
-        hdr.innerHTML = `<div class="num">📟</div><h3>表示されたメッセージ・記号</h3><span class="accordion-icon">▼</span>`;
-      }
-      // container (meterCategoryList) と freeTextカード をラップする
-      const originalHtml = container.outerHTML + document.querySelector('#meterMessageSection .glass-card:not(.accordion)').outerHTML;
-      container.outerHTML = `<div id="meterMessageWrap" class="accordion-body" style="display:none;">${originalHtml}</div>`;
-      // 重複したfreeTextカードを消す
-      const cards = document.querySelectorAll('#meterMessageSection .glass-card:not(.accordion)');
-      if (cards.length > 0) cards[cards.length - 1].remove();
-    }
-  }
+  // メーターメッセージセクション自体のアコーディオン化は廃止（常に開いた状態で通常表示）
+  autoExpandMeterCategories();
 }
 
 function updateMeterSelection() {
@@ -1752,38 +1809,44 @@ ${answersText}${meterSection}${warningSection}
 function renderDeepDive() {
   // ── 分析結果カード ──
   const ac = document.getElementById('analysisCard');
-  const faults = deepdiveResult.suspected_faults.map(f => {
+  
+  const faults = deepdiveResult.suspected_faults.map((f, fIdx) => {
     const bc = f.confidence==='高'?'badge-high':f.confidence==='中'?'badge-mid':'badge-low';
     const ic = f.confidence==='高'?'🔴':f.confidence==='中'?'🟡':'🔵';
-    return `<div class="fault-item"><div class="fault-icon">${ic}</div><div class="fault-info"><div class="fault-name">${esc(f.name)} <span class="badge ${bc}">${f.confidence}</span></div><div class="fault-reason">${esc(f.reason)}</div></div></div>`;
+    const contentId = `fault_reason_${fIdx}`;
+    
+    if (useAccordionUI()) {
+      return `
+        <div class="fault-item accordion" style="border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.5rem; padding:0.5rem;">
+          <div class="accordion-header" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleAccordion('${contentId}')">
+            <div class="fault-name" style="margin-bottom:0; font-size:0.85rem;">${ic} ${esc(f.name)} <span class="badge ${bc}">${f.confidence}</span></div>
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-body" id="${contentId}" style="display:none; margin-top:0.4rem; font-size:0.8rem; color:var(--text-dim); border-top:1px solid rgba(255,255,255,0.04); padding-top:0.4rem;">
+            ${esc(f.reason)}
+          </div>
+        </div>`;
+    } else {
+      return `<div class="fault-item"><div class="fault-icon">${ic}</div><div class="fault-info"><div class="fault-name">${esc(f.name)} <span class="badge ${bc}">${f.confidence}</span></div><div class="fault-reason">${esc(f.reason)}</div></div></div>`;
+    }
   }).join('');
 
   const tips = (deepdiveResult.interviewer_tips||[]).map(t =>
     `<div class="tip-card">💡 ${esc(t)}</div>`
   ).join('');
 
-  if (isDemoMode2) {
-    ac.className = 'glass-card accordion';
-    ac.innerHTML = `
-      <div class="accordion-header" onclick="toggleAccordion('analysisCardBody')">
-        <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:0;">🤖 AI分析結果 <span style="font-size:0.75rem; color:var(--text-dim); font-weight:normal; margin-left:0.5rem;">(クリックで展開)</span></h3>
-        <span class="accordion-icon">▼</span>
-      </div>
-      <div class="accordion-body" id="analysisCardBody" style="display:none;">
-        <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
-        ${faults}
-        ${tips ? '<div style="margin-top:.7rem"><div style="font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.35rem">📌 問診者へのアドバイス</div>' + tips + '</div>' : ''}
-      </div>
-    `;
-  } else {
-    ac.className = 'glass-card';
-    ac.innerHTML = `
-      <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:.6rem">🤖 AI分析結果</h3>
-      <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
-      ${faults}
-      ${tips ? '<div style="margin-top:.7rem"><div style="font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.35rem">📌 問診者へのアドバイス</div>' + tips + '</div>' : ''}
-    `;
+  let tipsHtml = '';
+  if (tips) {
+    tipsHtml = `<div style="margin-top:.7rem"><div style="font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.35rem">📌 問診者へのアドバイス</div>${tips}</div>`;
   }
+
+  ac.className = 'glass-card';
+  ac.innerHTML = `
+    <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:.6rem">🤖 AI分析結果</h3>
+    <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
+    ${faults}
+    ${tipsHtml}
+  `;
 
   // ── 深掘り質問フォーム ──
   const form = document.getElementById('deepdiveForm');
@@ -2039,21 +2102,7 @@ function renderSummary(text) {
           }
         }
         
-        if (isDemoMode2) {
-          const contentId = `summary_sec_body_${idx}`;
-          html += `
-            <div class="summary-section accordion" style="margin-bottom:0.75rem;">
-              <div class="summary-header" onclick="toggleAccordion('${contentId}')">
-                <h4 style="margin-bottom:0;">${icon} ${esc(title)}</h4>
-                <span class="accordion-icon">▼</span>
-              </div>
-              <div class="summary-body" id="${contentId}" style="display:none;">
-                <div class="summary-content">${esc(body)}${imgHtml}</div>
-              </div>
-            </div>`;
-        } else {
-          html += `<div class="summary-section"><h4>${icon} ${esc(title)}</h4><div class="summary-content">${esc(body)}${imgHtml}</div></div>`;
-        }
+        html += `<div class="summary-section"><h4>${icon} ${esc(title)}</h4><div class="summary-content">${esc(body)}${imgHtml}</div></div>`;
       } catch(secErr) {
         console.error('[renderSummary] Section parse error:', secErr, sec);
       }
