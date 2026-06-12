@@ -357,7 +357,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <div id="s_api" class="screen active center">
 <div class="content-wrap" style="max-width:460px;text-align:center">
   <div style="font-size:2.6rem;margin-bottom:.3rem">🔧</div>
-  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.8</span></h1>
+  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.9</span></h1>
   <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.8rem;line-height:1.6">AIが深掘り質問を自動生成し<br>再現可能なレベルの問診をサポートします</p>
   <div class="glass-card" style="text-align:left">
     <div class="input-group">
@@ -541,7 +541,244 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="nav-bar" style="margin-top:1.5rem">
     <button class="btn btn-secondary" onclick="go('s_deepdive')">← 問診に戻る</button>
     <button class="btn btn-primary" onclick="copySummary()">📋 コピー</button>
-    <button class="btn btn-accent" onclick="resetAll()">🔄 新しい問診</button>
+    <button class="btn btn-accent" id="summaryDiagBtn" style="display:none;" onclick="goToDiagnosis()">🔍 診断へ →</button>
+    <button class="btn btn-accent" id="summaryResetBtn" onclick="resetAll()">🔄 新しい問診</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 6: 車両診断 (s_diagnosis) ===== -->
+<div id="s_diagnosis" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper5"></div>
+  <h2 class="page-title">🔍 車両診断（データ裏取り・物理点検）</h2>
+  <p class="page-sub">実車の物理的な状態と、診断機から得られるデータログの確認を行います</p>
+  
+  <!-- 診断① 物理点検 -->
+  <div class="glass-card" style="margin-bottom:1rem">
+    <div class="sec-header">
+      <div class="num">1</div>
+      <h3>診断①：物理点検（目視点検）</h3>
+    </div>
+    <div style="font-size:0.88rem; line-height:1.6; color:var(--text); display:flex; flex-direction:column; gap:0.6rem;">
+      <div style="padding:0.7rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+        <strong>🔹 センサ表面の目視確認</strong>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">センサ表面に傷や割れ、および明らかな汚れの残り（乾いた泥など）がないか確認します。</p>
+      </div>
+      <div style="padding:0.7rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+        <strong>🔹 センサの取付状態の確認</strong>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">センサステーの曲がりや、バンパーのズレ・浮きによって検知方向がずれていないか物理的に裏取りを行います。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 診断② 再現テスト（デモ3専用） -->
+  <div class="glass-card" id="diagReproCard" style="margin-bottom:1rem; display:none;">
+    <div class="sec-header">
+      <div class="num">2</div>
+      <h3>診断②：走行環境による再現テスト</h3>
+    </div>
+    <div id="reproInitialSection" style="text-align:center; padding:1.2rem 0;">
+      <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1rem;">
+        問診で確認された再現路面（ガタガタ道）での試乗、または工場内で擬似的に振動を与える加振再現テストを行います。
+      </p>
+      <button class="btn btn-primary" id="reproStartBtn" onclick="startDemo3Repro()">🚗 再現テスト（実車加振）開始</button>
+    </div>
+    
+    <!-- 再現中ローディング -->
+    <div style="display:none; text-align:center; padding:1.5rem 0;" id="reproLoadingSection">
+      <div style="width:30px; height:30px; border:3px solid var(--glass-border); border-top-color:var(--primary); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 0.8rem;"></div>
+      <p style="font-size:0.83rem; color:var(--primary); animation:pulse 1.5s ease-in-out infinite;">悪路走行環境をシミュレート中（車両加振中）...</p>
+    </div>
+
+    <!-- 再現結果 -->
+    <div id="reproResultSection" style="display:none; font-size:0.85rem; line-height:1.6;">
+      <div style="padding:0.8rem; background:rgba(239, 68, 68, 0.08); border:1px solid rgba(239, 68, 68, 0.2); border-radius:8px;">
+        <span class="badge" style="background:rgba(239, 68, 68, 0.2); color:#ef4444; border-color:rgba(239, 68, 68, 0.3); margin-bottom:0.4rem;">再現結果</span>
+        <div style="font-weight:600; font-size:0.95rem; color:#ef4444; display:flex; align-items:center; gap:0.3rem;">🚗 警告灯・メッセージの「点灯・消灯」の現象を再現</div>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">悪路走行（連続した振動）を再現したところ、メーターパネルのクリアランスソナーOFF表示灯が「点灯」し、振動を止めるとしばらくして「消灯」することを確認しました。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 診断機でのデータ裏取り -->
+  <div class="glass-card" style="margin-bottom:1rem" id="diagReadCard">
+    <div class="sec-header">
+      <div class="num" id="diagCardNum">2</div>
+      <h3 id="diagCardTitle">診断機でデータ裏取り（ダイアグ・挙動ログ）</h3>
+    </div>
+    <div style="text-align:center; padding:1.2rem 0;" id="diagInitialSection">
+      <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1rem;" id="diagInitialText">OBD-IIコネクタに診断機を接続し、車両ECUからDTC（ダイアグコード）とRoB（車両挙動データ）を読み取ります。</p>
+      <button class="btn btn-primary" id="diagStartBtn" onclick="startDiagnosisRead()">🔌 診断機接続後、読み取り開始</button>
+    </div>
+    
+    <!-- ローディング表示 -->
+    <div style="display:none; text-align:center; padding:1.5rem 0;" id="diagLoadingSection">
+      <div style="width:30px; height:30px; border:3px solid var(--glass-border); border-top-color:var(--primary); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 0.8rem;"></div>
+      <p style="font-size:0.83rem; color:var(--primary); animation:pulse 1.5s ease-in-out infinite;">車両ECUと通信中... DTC/RoBデータを取得しています</p>
+    </div>
+    
+    <!-- 診断結果データ（デモ1・2用） -->
+    <div id="diagResultNormal" style="display:none; font-size:0.85rem; line-height:1.6;">
+      <div style="padding:0.8rem; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.2); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-low" style="background:rgba(16, 185, 129, 0.2); color:#10b981; border-color:rgba(16, 185, 129, 0.3); margin-bottom:0.4rem;">DTC (ダイアグコード)</span>
+        <div style="font-weight:600; font-size:0.95rem; color:#10b981;">✅ 正常（故障コードの出力なし）</div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.2rem;">恒久的な電気的断線や内部故障コードは記録されていません。</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--surface2); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-mid" style="margin-bottom:0.4rem;">RoB (車両挙動データ)</span>
+        <div style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:0.2rem;">
+          <span style="font-family:monospace; font-weight:700; font-size:1rem; color:var(--warn);">[X20C6]</span>
+          <span style="font-weight:600; font-size:0.88rem;">ウルトラソニックセンサ (フロントコーナ右) 一時使用不可 - 環境要因</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim);">センサ通信の一時的な遮蔽・機能低下の履歴が車両ログに記録されています。</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--primary-dim); border:1px solid rgba(59, 130, 246, 0.25); border-radius:8px;">
+        <span class="badge badge-high" style="background:var(--primary-dim); color:var(--primary); border-color:rgba(59, 130, 246, 0.3); margin-bottom:0.4rem;">タイムスタンプ照合</span>
+        <div style="font-weight:600; font-size:0.9rem; color:#60a5fa; display:flex; align-items:center; gap:0.3rem;">🎯 問診の不具合発生日時と完全に一致</div>
+        <div style="margin-top:0.3rem; padding:0.4rem; background:rgba(0,0,0,0.2); border-radius:4px; font-family:monospace; font-size:0.8rem; color:var(--text-dim);">
+          - 問診回答の発生日時：<span style="color:#60a5fa;" class="diag-intake-time" id="diagIntakeTime">2週間前の日曜日、14時頃</span><br>
+          - 車両RoBの記録日時：<span style="color:#60a5fa;" class="diag-rob-time" id="diagRobTime">2週間前の日曜日 14:00</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.3rem;">お客様が警告灯点灯（泥はね）を体感した時刻と、ECUが一時使用不可を検知した時刻が一致し、不具合の因因関係が裏付けられました。</p>
+      </div>
+    </div>
+
+    <!-- 診断結果データ（デモ3用） -->
+    <div id="diagResultDemo3" style="display:none; font-size:0.85rem; line-height:1.6;">
+      <div style="padding:0.8rem; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.2); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-low" style="background:rgba(16, 185, 129, 0.2); color:#10b981; border-color:rgba(16, 185, 129, 0.3); margin-bottom:0.4rem;">DTC (ダイアグコード)</span>
+        <div style="font-weight:600; font-size:0.95rem; color:#10b981;">✅ 正常（故障コードの出力なし）</div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.2rem;">恒久的な電気的断線や内部故障コードは記録されていません。</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--surface2); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-mid" style="margin-bottom:0.4rem;">RoB (車両挙動データ)</span>
+        <div style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:0.2rem;">
+          <span style="font-family:monospace; font-weight:700; font-size:1rem; color:var(--warn);">[X20C6]</span>
+          <span style="font-weight:600; font-size:0.88rem;">ウルトラソニックセンサ (フロントコーナ右) 一時使用不可 - 環境要因</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim);">センサ通信の一時的な遮蔽・機能低下の履歴が車両ログに記録されています。</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--primary-dim); border:1px solid rgba(59, 130, 246, 0.25); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-high" style="background:var(--primary-dim); color:var(--primary); border-color:rgba(59, 130, 246, 0.3); margin-bottom:0.4rem;">タイムスタンプ照合</span>
+        <div style="font-weight:600; font-size:0.9rem; color:#60a5fa; display:flex; align-items:center; gap:0.3rem;">🎯 問診の不具合発生日時と完全に一致</div>
+        <div style="margin-top:0.3rem; padding:0.4rem; background:rgba(0,0,0,0.2); border-radius:4px; font-family:monospace; font-size:0.8rem; color:var(--text-dim);">
+          - 問診回答の発生日時：<span style="color:#60a5fa;" class="diag-intake-time">2週間前の日曜日、14時頃</span><br>
+          - 車両RoBの記録日時：<span style="color:#60a5fa;" class="diag-rob-time">2週間前の日曜日 14:00</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.3rem;">お客様が警告灯点灯（悪路振動）を体感した時刻と、ECUが一時使用不可を検知した時刻が一致し、不具合の因果関係が裏付けられました。</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--surface2); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-high" style="background:var(--primary-dim); color:var(--primary); border-color:rgba(59, 130, 246, 0.3); margin-bottom:0.4rem;">同様不具合の修理実績（直近1年）</span>
+        <div style="font-size:0.8rem; color:var(--text); display:flex; flex-direction:column; gap:0.25rem;">
+          <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.2rem;"><span>🔹 センサー本体内部不具合（接触不良含む）</span><strong style="color:var(--accent);">5件</strong></div>
+          <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.2rem;"><span>🔹 ハーネス・コネクタ接続不良</span><strong style="color:var(--accent);">2件</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span>🔹 コンピュータ（ECU）異常</span><strong style="color:var(--accent);">1件</strong></div>
+        </div>
+      </div>
+
+      <div style="padding:0.8rem; background:rgba(245, 158, 11, 0.08); border:1px solid rgba(245, 158, 11, 0.25); border-radius:8px;" id="diagSensorTestSection">
+        <span class="badge" style="background:rgba(245, 158, 11, 0.2); color:#f59e0b; border-color:rgba(245, 158, 11, 0.3); margin-bottom:0.4rem;">センサー単体加振テスト（追加点検）</span>
+        <div style="font-weight:600; font-size:0.9rem; color:#fbbf24; display:flex; align-items:center; gap:0.3rem;">⚠️ センサ単体加振によりデータモニター結果が「一時故障」に変化</div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.25rem;">フロントセンタ右センサー単体を取り外し、診断機のデータモニターを観察しながら微小な振動（加振）を与えたところ、モニターのステートが「正常」から「一時故障」に切り替わる現象が発生。センサー内部の接触不良と特定しました。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 診断③ 結論（動的書き換え対応） -->
+  <div class="glass-card" id="diagStep2Section" style="margin-bottom:1rem; display:none;">
+    <div class="sec-header">
+      <div class="num" id="conclusionCardNum">3</div>
+      <h3 id="conclusionCardTitle">診断②：タイミング照合の結論</h3>
+    </div>
+    <div style="font-size:0.85rem; line-height:1.6; color:var(--text);">
+      <p style="padding:0.75rem; background:rgba(16, 185, 129, 0.08); border-left:3px solid var(--accent); border-radius:4px;" id="diagStep2Text">
+        RoBに記録されている「センサ通信異常/遮蔽」の日時データが、問診で聞き出した「お客様が発生・解消を体感したタイミング」と完全に一致することを確認しました。これにより、<strong>センサの物理的破損ではなく、一時的な付着物（泥はね）が原因である</strong>と確定診断しました。
+      </p>
+    </div>
+  </div>
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_summary')">← サマリーに戻る</button>
+    <button class="btn btn-accent" style="flex:1" id="goToServiceBtn" onclick="goToService()" disabled>🔧 整備へ →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 7: 整備完了 (s_service) ===== -->
+<div id="s_service" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper6"></div>
+  <h2 class="page-title">🔧 整備・修理完了（結果のご説明）</h2>
+  <p class="page-sub">診断で確定した原因に基づき、物理的な処置とお客様への納得のいく説明を行います</p>
+  
+  <!-- 整備内容（デモ1・2用） -->
+  <div id="serviceContentNormal" style="display:block;">
+    <div class="glass-card" style="margin-bottom:1rem">
+      <div class="sec-header">
+        <div class="num">🛠️</div>
+        <h3>整備内容</h3>
+      </div>
+      <div style="font-size:0.88rem; line-height:1.6; color:var(--text); display:flex; flex-direction:column; gap:0.6rem;">
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>🔧 整備①：センサ表面の清掃</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">フロント右コーナーセンサの表面に付着していた乾いた泥などの汚れをきれいに清掃・除去します。</p>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>🔧 整備②：現車での作動確認</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">清掃後、システムに異常がないこと、および警告灯やメッセージが消灯し、障害物検知機能が正常に作動することの最終チェックを行います。</p>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>💬 整備③：お客様へのメカニズム説明</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">取扱説明書に記載されている「作動制限・センサの遮蔽」のページをお客様と一緒に見ながら、雨天時の泥はねによる一時的な機能停止のメカニズムを解説し、製品異常ではないことをご説明します。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 整備内容（デモ3用） -->
+  <div id="serviceContentDemo3" style="display:none;">
+    <div class="glass-card" style="margin-bottom:1rem">
+      <div class="sec-header">
+        <div class="num">🛠️</div>
+        <h3>整備内容</h3>
+      </div>
+      <div style="font-size:0.88rem; line-height:1.6; color:var(--text); display:flex; flex-direction:column; gap:0.6rem;">
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>🔧 整備①：不具合センサーの部品交換</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">フロントバンパーを取り外し、内部のフロントセンタ右センサーを新品センサーへ交換します。（作業内容: バンパー脱着、センサー脱着・交換）</p>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>🎯 整備②：交換後のエーミング（測定・登録校正）</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">新品センサー交換に伴い、規定の校正手順（エーミング）を実施します。</p>
+          <div style="margin-top:0.35rem; padding:0.5rem; background:rgba(0,0,0,0.25); border-radius:6px; font-size:0.78rem; color:var(--text-dim); display:flex; flex-direction:column; gap:0.25rem;">
+            <span>1. <strong>準備作業:</strong> タイヤ空気圧調整、車高・積載状態の確認、完全水平な床への設置。</span>
+            <span>2. <strong>高さ・角度測定:</strong> バンパー設置高さと各部センサーの傾斜角を精密に測定。</span>
+            <span>3. <strong>登録設定:</strong> 診断機を接続し、測定値を車両ECUへ入力して初期校正を実施。</span>
+          </div>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>🔧 整備③：現車での作動確認</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">交換・エーミング完了後、警告灯が消灯し、障害物が正常に検知されることの最終確認を行います。</p>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>💬 整備④：お客様へのメカニズム説明</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">センサー内部の極めて微小な断線（接触不良）により、悪路振動で警告灯が出入りしていたことをデータ裏取りを元に解説し、新品交換と校正の完了をご報告します。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_diagnosis')">← 診断に戻る</button>
+    <button class="btn btn-primary" style="flex:1" onclick="resetAll()">🔄 新しい問診をはじめる</button>
   </div>
 </div>
 </div>
@@ -646,6 +883,8 @@ let warningLights = [];   // スプレッドシートから読み込んだ警告
 let isDemoMode = false;   // デモモードフラグ
 let isDemoMode2 = false;  // デモモード2フラグ
 let isDemoMode3 = false;  // デモモード3フラグ
+let isDiagRead = false;   // 診断機データ読み取り完了フラグ
+let isDemo3ReproRun = false; // デモ3走行再現テスト実行フラグ
 
 function useAccordionUI() {
   // デモ1（isDemoModeが真で、かつデモ2・3がいずれも偽）のみアコーディオンUIを適用しない
@@ -731,10 +970,19 @@ function parseCSV(text) {
 //  ユーティリティ
 // ══════════════════════════════════════════════════════════════
 function go(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  window.scrollTo(0, 0);
-  renderSteppers(id);
+  try {
+    const target = document.getElementById(id);
+    if (!target) {
+      throw new Error(`画面要素が見つかりません: ${id}`);
+    }
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    target.classList.add('active');
+    window.scrollTo(0, 0);
+    renderSteppers(id);
+  } catch (err) {
+    showToast(`画面遷移エラー (${id}): ` + err.message);
+    console.error(err);
+  }
 }
 
 function toggleAccordion(id) {
@@ -813,29 +1061,68 @@ function getSteps() {
     { id:'s_complaint', label:'ご用命入力', n:'1' },
     { id:'s_intake',    label:'共通問診',  n:'2' },
   ];
+  let n = 3;
   if (showMeterScreen) {
-    steps.push({ id:'s_meter', label:'表示特定', n:'3' });
-    steps.push({ id:'s_deepdive', label:'深掘り問診', n:'4' });
-    steps.push({ id:'s_summary',  label:'サマリー', n:'5' });
-  } else {
-    steps.push({ id:'s_deepdive', label:'深掘り問診', n:'3' });
-    steps.push({ id:'s_summary',  label:'サマリー', n:'4' });
+    steps.push({ id:'s_meter', label:'表示特定', n: String(n++) });
   }
+  steps.push({ id:'s_deepdive', label:'深掘り問診', n: String(n++) });
+  steps.push({ id:'s_summary',  label:'サマリー', n: String(n++) });
+  
+  // デモモードのとき（デモ1・2・3）のみ「診断」「整備」を追加
+  const isDemoMoc = isDemoMode;
+  if (isDemoMoc) {
+    steps.push({ id:'s_diagnosis', label:'車両診断', n: String(n++) });
+    steps.push({ id:'s_service',   label:'整備完了', n: String(n++) });
+  }
+  
   return steps;
 }
 
 function renderSteppers(current) {
-  const steps = getSteps();
-  const idx = steps.findIndex(s => s.id === current);
-  const html = steps.map((s, i) => {
-    const cls = i < idx ? 'step done' : i === idx ? 'step active' : 'step';
-    const dot = i < idx ? '✓' : s.n;
-    const line = i < steps.length - 1
-      ? `<div class="step-line${i < idx ? ' done' : ''}"></div>` : '';
-    return `<div class="${cls}"><div class="step-dot">${dot}</div><div class="step-label">${s.label}</div></div>${line}`;
-  }).join('');
-  document.querySelectorAll('[id^="stepper"]').forEach(el => el.innerHTML = html);
+  try {
+    const steps = getSteps();
+    const idx = steps.findIndex(s => s.id === current);
+    const html = steps.map((s, i) => {
+      const cls = i < idx ? 'step done' : i === idx ? 'step active' : 'step';
+      const dot = i < idx ? '✓' : s.n;
+      const line = i < steps.length - 1
+        ? `<div class="step-line${i < idx ? ' done' : ''}"></div>` : '';
+      return `<div class="${cls}"><div class="step-dot">${dot}</div><div class="step-label">${s.label}</div></div>${line}`;
+    }).join('');
+    document.querySelectorAll('[id^="stepper"]').forEach(el => el.innerHTML = html);
+  } catch (err) {
+    showToast('ステッパー描画エラー: ' + err.message);
+    console.error(err);
+  }
 }
+
+// グローバルエラー監視（デバッグ用）
+window.onerror = function(message, source, lineno, colno, error) {
+  const errText = `JSエラー: ${message}\n場所: ${source}:${lineno}:${colno}`;
+  const toastEl = document.getElementById('toastEl');
+  if (toastEl) {
+    toastEl.textContent = errText;
+    toastEl.className = 'toast toast-error';
+    toastEl.style.display = 'block';
+    setTimeout(() => { toastEl.style.display = 'none'; }, 8000);
+  } else {
+    alert(errText);
+  }
+  return false;
+};
+
+window.onunhandledrejection = function(event) {
+  const errText = `非同期エラー: ${event.reason}`;
+  const toastEl = document.getElementById('toastEl');
+  if (toastEl) {
+    toastEl.textContent = errText;
+    toastEl.className = 'toast toast-error';
+    toastEl.style.display = 'block';
+    setTimeout(() => { toastEl.style.display = 'none'; }, 8000);
+  } else {
+    alert(errText);
+  }
+};
 
 // ══════════════════════════════════════════════════════════════
 //  Screen 1: 初期化
@@ -2109,6 +2396,7 @@ function renderSummary(text) {
     });
 
     container.innerHTML = html;
+    updateSummaryNavButtons();
   } catch(globalErr) {
     console.error('[renderSummary] Global render error:', globalErr);
     showToast('サマリー表示の構築中にエラーが発生しました');
@@ -2120,14 +2408,231 @@ function copySummary() {
     ()=>showToast('コピーしました','info'), ()=>showToast('コピー失敗'));
 }
 
+// ── 診断・整備連携機能（MoC）関連のロジック ──
+function updateSummaryNavButtons() {
+  const isDemoMoc = isDemoMode;
+  const diagBtn = document.getElementById('summaryDiagBtn');
+  const resetBtn = document.getElementById('summaryResetBtn');
+  
+  if (diagBtn && resetBtn) {
+    if (isDemoMoc) {
+      diagBtn.style.display = 'inline-flex';
+      resetBtn.style.display = 'none'; // 診断・整備フローへ誘導するため、ここでは非表示
+    } else {
+      diagBtn.style.display = 'none';
+      resetBtn.style.display = 'inline-flex';
+    }
+  }
+}
+
+function goToDiagnosis() {
+  try {
+    // 初期状態にリセット
+    isDiagRead = false;
+    isDemo3ReproRun = false;
+    
+    const diagInit = document.getElementById('diagInitialSection');
+    const diagLoad = document.getElementById('diagLoadingSection');
+    
+    const diagResultNormal = document.getElementById('diagResultNormal');
+    const diagResultDemo3 = document.getElementById('diagResultDemo3');
+    
+    const diagStep2 = document.getElementById('diagStep2Section');
+    const goToService = document.getElementById('goToServiceBtn');
+    
+    const diagReproCard = document.getElementById('diagReproCard');
+    const reproInit = document.getElementById('reproInitialSection');
+    const reproLoad = document.getElementById('reproLoadingSection');
+    const reproResult = document.getElementById('reproResultSection');
+    const diagReadCard = document.getElementById('diagReadCard');
+    
+    // 全体を非表示・初期化
+    if (diagInit) diagInit.style.display = 'block';
+    if (diagLoad) diagLoad.style.display = 'none';
+    if (diagResultNormal) diagResultNormal.style.display = 'none';
+    if (diagResultDemo3) diagResultDemo3.style.display = 'none';
+    if (diagStep2) diagStep2.style.display = 'none';
+    if (goToService) goToService.disabled = true;
+    
+    if (isDemoMode3) {
+      // デモ3の場合：再現テストを表示、診断機は最初は非表示
+      if (diagReproCard) diagReproCard.style.display = 'block';
+      if (reproInit) reproInit.style.display = 'block';
+      if (reproLoad) reproLoad.style.display = 'none';
+      if (reproResult) reproResult.style.display = 'none';
+      if (diagReadCard) diagReadCard.style.display = 'none';
+      
+      const diagCardNum = document.getElementById('diagCardNum');
+      const diagCardTitle = document.getElementById('diagCardTitle');
+      const conclusionCardNum = document.getElementById('conclusionCardNum');
+      const conclusionCardTitle = document.getElementById('conclusionCardTitle');
+      
+      if (diagCardNum) diagCardNum.textContent = '3';
+      if (diagCardTitle) diagCardTitle.textContent = '診断③：診断機でデータ裏取り（不具合実績＆単体加振テスト）';
+      if (conclusionCardNum) conclusionCardNum.textContent = '4';
+      if (conclusionCardTitle) conclusionCardTitle.textContent = '診断④：総合診断の結論';
+    } else {
+      // デモ1・2の場合：再現テストは非表示、診断機を表示
+      if (diagReproCard) diagReproCard.style.display = 'none';
+      if (diagReadCard) diagReadCard.style.display = 'block';
+      
+      const diagCardNum = document.getElementById('diagCardNum');
+      const diagCardTitle = document.getElementById('diagCardTitle');
+      const conclusionCardNum = document.getElementById('conclusionCardNum');
+      const conclusionCardTitle = document.getElementById('conclusionCardTitle');
+      
+      if (diagCardNum) diagCardNum.textContent = '2';
+      if (diagCardTitle) diagCardTitle.textContent = '診断機でデータ裏取り（ダイアグ・挙動ログ）';
+      if (conclusionCardNum) conclusionCardNum.textContent = '3';
+      if (conclusionCardTitle) conclusionCardTitle.textContent = '診断②：タイミング照合の結論';
+    }
+    
+    go('s_diagnosis');
+  } catch (err) {
+    showToast('goToDiagnosis実行エラー: ' + err.message);
+    console.error(err);
+  }
+}
+
+function startDemo3Repro() {
+  const reproInit = document.getElementById('reproInitialSection');
+  const reproLoad = document.getElementById('reproLoadingSection');
+  const reproResult = document.getElementById('reproResultSection');
+  const diagReadCard = document.getElementById('diagReadCard');
+  
+  if (reproInit) reproInit.style.display = 'none';
+  if (reproLoad) reproLoad.style.display = 'block';
+  
+  setTimeout(() => {
+    if (reproLoad) reproLoad.style.display = 'none';
+    if (reproResult) reproResult.style.display = 'block';
+    
+    isDemo3ReproRun = true;
+    
+    // 診断機裏取りカードを表示する
+    if (diagReadCard) {
+      diagReadCard.style.display = 'block';
+      diagReadCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 1500);
+}
+
+function startDiagnosisRead() {
+  const diagInit = document.getElementById('diagInitialSection');
+  const diagLoad = document.getElementById('diagLoadingSection');
+  
+  const diagResultNormal = document.getElementById('diagResultNormal');
+  const diagResultDemo3 = document.getElementById('diagResultDemo3');
+  
+  const diagStep2 = document.getElementById('diagStep2Section');
+  const diagStep2Text = document.getElementById('diagStep2Text');
+  const goToService = document.getElementById('goToServiceBtn');
+  
+  if (diagInit) diagInit.style.display = 'none';
+  if (diagLoad) diagLoad.style.display = 'block';
+  
+  // 問診日時を動的に反映
+  const onsetAns = getFormattedAnswer('i_onset', 'intake') || '2週間前の日曜日、14時頃';
+  const onsetTimeText = (onsetAns.includes('不明') || onsetAns === '') ? '2週間前の日曜日、14時頃' : onsetAns;
+  document.querySelectorAll('.diag-intake-time').forEach(el => el.textContent = onsetTimeText);
+  
+  // RoB側は問診時刻と一致したタイムスタンプをダミー生成
+  let robTimeText = "2週間前の日曜日 14:00";
+  if (onsetTimeText.includes('本日/昨日')) {
+    robTimeText = "本日 14:00";
+  } else if (onsetTimeText.includes('数日前')) {
+    robTimeText = "3日前 14:00";
+  } else if (onsetTimeText.includes('1週間以内')) {
+    robTimeText = "5日前 14:00";
+  } else if (onsetTimeText.includes('1ヶ月以内') || onsetTimeText.includes('２週間前')) {
+    robTimeText = "2週間前の日曜日 14:00";
+  }
+  document.querySelectorAll('.diag-rob-time').forEach(el => el.textContent = robTimeText);
+
+  setTimeout(() => {
+    if (diagLoad) diagLoad.style.display = 'none';
+    
+    if (isDemoMode3) {
+      if (diagResultNormal) diagResultNormal.style.display = 'none';
+      if (diagResultDemo3) diagResultDemo3.style.display = 'block';
+      if (diagStep2Text) {
+        diagStep2Text.innerHTML = '走行再現テストおよびセンサ単体加振テストの結果より、<strong>悪路走行時の連続的な振動によってセンサー内部に一時的な接触不良（瞬断）が発生する</strong>ことが確認されました。DTC出力やRoB履歴には残らない極めて短い瞬断であるため、診断機での単純読み取りでは検出できない不具合と特定し、<strong>センサー本体の不具合（接触不良）である</strong>と確定診断しました。';
+        diagStep2Text.style.borderLeftColor = 'var(--accent)';
+      }
+    } else {
+      if (diagResultNormal) diagResultNormal.style.display = 'block';
+      if (diagResultDemo3) diagResultDemo3.style.display = 'none';
+      if (diagStep2Text) {
+        diagStep2Text.innerHTML = 'RoBに記録されている「センサ通信異常/遮蔽」の日時データが、問診で聞き出した「お客様が発生・解消を体感したタイミング」と完全に一致することを確認しました。これにより、<strong>センサの物理的破損ではなく、一時的な付着物（泥はね）が原因である</strong>と確定診断しました。';
+        diagStep2Text.style.borderLeftColor = 'var(--accent)';
+      }
+    }
+    
+    if (diagStep2) diagStep2.style.display = 'block';
+    if (goToService) goToService.disabled = false;
+    isDiagRead = true;
+    
+    // スクロールして結果を見やすくする
+    if (isDemoMode3) {
+      diagResultDemo3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      diagResultNormal.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 1500);
+}
+
+function goToService() {
+  const isDemo3 = isDemoMode3;
+  const normalSvc = document.getElementById('serviceContentNormal');
+  const demo3Svc = document.getElementById('serviceContentDemo3');
+  if (normalSvc && demo3Svc) {
+    if (isDemo3) {
+      normalSvc.style.display = 'none';
+      demo3Svc.style.display = 'block';
+    } else {
+      normalSvc.style.display = 'block';
+      demo3Svc.style.display = 'none';
+    }
+  }
+  go('s_service');
+}
+
 function resetAll() {
   complaint=''; intakeAnswers={}; deepdiveResult=null; deepdiveAnswers={}; summaryText='';
   isDemoMode = false; // デモモードをリセット
   isDemoMode2 = false; // デモモード2をリセット
   isDemoMode3 = false; // デモモード3をリセット
+  isDiagRead = false; // 診断ステートをリセット
+  isDemo3ReproRun = false; // デモ3走行再現テスト実行フラグをリセット
+  
   document.getElementById('complaintInput').value='';
   const meterFree = document.getElementById('meterFreeText');
   if (meterFree) meterFree.value = '';
+  
+  // 診断・再現系の表示初期化
+  const diagReproCard = document.getElementById('diagReproCard');
+  const reproInit = document.getElementById('reproInitialSection');
+  const reproLoad = document.getElementById('reproLoadingSection');
+  const reproResult = document.getElementById('reproResultSection');
+  const diagReadCard = document.getElementById('diagReadCard');
+  const diagInit = document.getElementById('diagInitialSection');
+  const diagLoad = document.getElementById('diagLoadingSection');
+  const diagResultNormal = document.getElementById('diagResultNormal');
+  const diagResultDemo3 = document.getElementById('diagResultDemo3');
+  const diagStep2 = document.getElementById('diagStep2Section');
+  const goToServiceBtn = document.getElementById('goToServiceBtn');
+  
+  if (diagReproCard) diagReproCard.style.display = 'none';
+  if (reproInit) reproInit.style.display = 'block';
+  if (reproLoad) reproLoad.style.display = 'none';
+  if (reproResult) reproResult.style.display = 'none';
+  if (diagReadCard) diagReadCard.style.display = 'block';
+  if (diagInit) diagInit.style.display = 'block';
+  if (diagLoad) diagLoad.style.display = 'none';
+  if (diagResultNormal) diagResultNormal.style.display = 'none';
+  if (diagResultDemo3) diagResultDemo3.style.display = 'none';
+  if (diagStep2) diagStep2.style.display = 'none';
+  if (goToServiceBtn) goToServiceBtn.disabled = true;
   
   // アコーディオン要素の解除・初期化
   const card = document.getElementById('complaintCard');
@@ -2186,6 +2691,8 @@ function resetAll() {
   document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
   document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
   document.querySelectorAll('textarea').forEach(t => t.value = '');
+  
+  updateSummaryNavButtons(); // サマリー画面のナビボタン表示状態を初期状態へ戻す
   go('s_api');
 }
 
