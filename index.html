@@ -343,6 +343,79 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   border-bottom-left-radius: 9px;
   border-bottom-right-radius: 9px;
 }
+
+/* ─── アコーディオンUI（デモモード2用） ─── */
+.q-card.accordion {
+  padding: 0;
+  overflow: hidden;
+}
+.accordion-header {
+  padding: 1rem 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+.accordion-header:hover {
+  background-color: var(--surface2);
+}
+.accordion-header .q-label {
+  margin-bottom: 0;
+  flex: 1;
+}
+.accordion-icon {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  transition: transform 0.3s ease;
+  margin-left: 0.5rem;
+}
+.accordion.active .accordion-icon {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+.accordion-body {
+  padding: 0 1.2rem 1.2rem 1.2rem;
+  border-top: 1px solid var(--glass-border);
+  animation: accordionSlideDown 0.3s ease-out;
+}
+@keyframes accordionSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* サマリー用アコーディオン */
+.summary-section.accordion {
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--glass);
+  margin-bottom: 0.75rem;
+  padding: 0;
+}
+.summary-header {
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+.summary-header:hover {
+  background-color: var(--surface2);
+}
+.summary-header h4 {
+  margin-bottom: 0;
+  flex: 1;
+}
+.summary-body {
+  padding: 0.8rem 1rem;
+  border-top: 1px solid var(--glass-border);
+  background: var(--surface);
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
+}
 </style>
 </head>
 <body>
@@ -357,7 +430,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <div id="s_api" class="screen active center">
 <div class="content-wrap" style="max-width:460px;text-align:center">
   <div style="font-size:2.6rem;margin-bottom:.3rem">🔧</div>
-  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v2.9</span></h1>
+  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v3.3</span></h1>
   <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.8rem;line-height:1.6">AIが深掘り質問を自動生成し<br>再現可能なレベルの問診をサポートします</p>
   <div class="glass-card" style="text-align:left">
     <div class="input-group">
@@ -564,10 +637,18 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       <div style="padding:0.7rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
         <strong>🔹 センサ表面の目視確認</strong>
         <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">センサ表面に傷や割れ、および明らかな汚れの残り（乾いた泥など）がないか確認します。</p>
+        <!-- デモ3用物理点検イラスト① -->
+        <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center;">
+          <img src="summary_image/diag_demo3_01_surface.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" alt="センサ表面目視確認">
+        </div>
       </div>
       <div style="padding:0.7rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
         <strong>🔹 センサの取付状態の確認</strong>
         <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">センサステーの曲がりや、バンパーのズレ・浮きによって検知方向がずれていないか物理的に裏取りを行います。</p>
+        <!-- デモ3用物理点検イラスト② -->
+        <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center;">
+          <img src="summary_image/diag_demo3_02_bracket.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" alt="センサ取付状態確認">
+        </div>
       </div>
     </div>
   </div>
@@ -577,6 +658,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div class="sec-header">
       <div class="num">2</div>
       <h3>診断②：走行環境による再現テスト</h3>
+    </div>
+    <!-- 走行再現テストイメージ -->
+    <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center; margin-bottom: 0.6rem;">
+      <img src="summary_image/diag_demo3_03_repro.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" alt="走行再現テストイメージ">
     </div>
     <div id="reproInitialSection" style="text-align:center; padding:1.2rem 0;">
       <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1rem;">
@@ -606,6 +691,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div class="sec-header">
       <div class="num" id="diagCardNum">2</div>
       <h3 id="diagCardTitle">診断機でデータ裏取り（ダイアグ・挙動ログ）</h3>
+    </div>
+    <!-- 診断機スキャンイメージ -->
+    <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center; margin-bottom: 0.6rem;">
+      <img src="summary_image/diag_demo3_04_scan.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" alt="診断機スキャンイメージ">
     </div>
     <div style="text-align:center; padding:1.2rem 0;" id="diagInitialSection">
       <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1rem;" id="diagInitialText">OBD-IIコネクタに診断機を接続し、車両ECUからDTC（ダイアグコード）とRoB（車両挙動データ）を読み取ります。</p>
@@ -700,6 +789,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       <p style="padding:0.75rem; background:rgba(16, 185, 129, 0.08); border-left:3px solid var(--accent); border-radius:4px;" id="diagStep2Text">
         RoBに記録されている「センサ通信異常/遮蔽」の日時データが、問診で聞き出した「お客様が発生・解消を体感したタイミング」と完全に一致することを確認しました。これにより、<strong>センサの物理的破損ではなく、一時的な付着物（泥はね）が原因である</strong>と確定診断しました。
       </p>
+      <!-- デモ3画像表示（総合診断の結論） -->
+      <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center;">
+        <img src="summary_image/diag_demo3_05_conclusion.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" alt="総合診断の結論">
+      </div>
     </div>
   </div>
 
@@ -752,10 +845,18 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
           <strong>🔧 整備①：不具合センサーの部品交換</strong>
           <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">フロントバンパーを取り外し、内部のフロントセンタ右センサーを新品センサーへ交換します。（作業内容: バンパー脱着、センサー脱着・交換）</p>
+          <!-- 整備①交換時イメージイラスト -->
+          <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center; margin-bottom: 0.6rem;">
+            <img src="summary_image/service_demo3_01_replace.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" alt="部品交換イメージ">
+          </div>
         </div>
         <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
           <strong>🎯 整備②：交換後のエーミング（測定・登録校正）</strong>
           <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">新品センサー交換に伴い、規定の校正手順（エーミング）を実施します。</p>
+          <!-- 整備②エーミング作業イメージイラスト -->
+          <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center; margin-bottom: 0.6rem;">
+            <img src="summary_image/service_demo3_02_aiming.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" alt="エーミング作業イメージ">
+          </div>
           <div style="margin-top:0.35rem; padding:0.5rem; background:rgba(0,0,0,0.25); border-radius:6px; font-size:0.78rem; color:var(--text-dim); display:flex; flex-direction:column; gap:0.25rem;">
             <span>1. <strong>準備作業:</strong> タイヤ空気圧調整、車高・積載状態の確認、完全水平な床への設置。</span>
             <span>2. <strong>高さ・角度測定:</strong> バンパー設置高さと各部センサーの傾斜角を精密に測定。</span>
@@ -899,7 +1000,7 @@ function useAccordionUI() {
 // ══════════════════════════════════════════════════════════════
 const SHEET_ID = '10rjXdjKBhCeBfkzr0HRNe41GBglmhx2zMxpe3uZmObE';
 const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=0`;
-const WARNING_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('警告灯マスター')}`;
+const WARNING_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=%E8%AD%A6%E5%91%8A%E7%81%AF%E3%83%9E%E3%82%B9%E3%82%BF%E3%83%BC`;
 
 async function loadMeterMessages() {
   try {
@@ -1415,13 +1516,32 @@ function renderQ(q, prefix) {
     if (formatted) {
       ansSummaryText = ` <span style="font-size:0.75rem; color:var(--accent); font-weight:normal; margin-left:0.5rem;">[回答: ${esc(formatted)}]</span>`;
     }
+
+    // 初期開閉状態の出し分け
+    let displayStyle = 'none';
+    let activeClass = '';
+    if (!isDemoMode2) {
+      // 通常 / デモ3 の場合
+      if (formatted) {
+        displayStyle = 'none';
+        activeClass = '';
+      } else {
+        displayStyle = 'block';
+        activeClass = 'active'; // 展開時は active クラスを付与し矢印を上向きに
+      }
+    } else {
+      // デモ2 の場合: 一律折りたたみ
+      displayStyle = 'none';
+      activeClass = '';
+    }
+
     return `
-      <div class="q-card accordion" id="qc_${prefix}_${q.id}">
+      <div class="q-card accordion ${activeClass}" id="qc_${prefix}_${q.id}">
         <div class="accordion-header" onclick="toggleAccordion('${contentId}')">
           <div class="q-label" style="margin-bottom:0;">${esc(q.label)}${reqMark}${ansSummaryText}</div>
           <span class="accordion-icon">▼</span>
         </div>
-        <div class="accordion-body" id="${contentId}" style="display:none;">
+        <div class="accordion-body" id="${contentId}" style="display:${displayStyle};">
           ${hintHtml}
           ${inputHtml}
           ${reasonHtml}
@@ -1582,7 +1702,20 @@ function renderWarningSelection() {
 
   container.innerHTML = html;
 
-  // 警告灯セクション自体のアコーディオン化は廃止（常に開いた状態で通常表示）
+  if (isDemoMode2) {
+    const warningSec = document.getElementById('warningLightSection');
+    if (warningSec && !warningSec.classList.contains('accordion')) {
+      warningSec.classList.add('accordion');
+      const hdr = warningSec.querySelector('.sec-header');
+      if (hdr) {
+        hdr.className = 'accordion-header';
+        hdr.onclick = () => toggleAccordion('warningGridWrap');
+        hdr.innerHTML = `<div class="num">🚨</div><h3>点灯していた警告灯（ランプ・マーク）</h3><span class="accordion-icon">▼</span>`;
+      }
+      // グリッドをラップする
+      container.outerHTML = `<div id="warningGridWrap" class="accordion-body" style="display:none;">${container.outerHTML}</div>`;
+    }
+  }
 }
 
 function updateWarningSelection() {
@@ -1713,7 +1846,25 @@ function renderMeterSelection() {
 
   container.innerHTML = html;
 
-  // メーターメッセージセクション自体のアコーディオン化は廃止（常に開いた状態で通常表示）
+  if (isDemoMode2) {
+    const meterSec = document.getElementById('meterMessageSection');
+    if (meterSec && !meterSec.classList.contains('accordion')) {
+      meterSec.classList.add('accordion');
+      const hdr = meterSec.querySelector('.sec-header');
+      if (hdr) {
+        hdr.className = 'accordion-header';
+        hdr.onclick = () => toggleAccordion('meterMessageWrap');
+        hdr.innerHTML = `<div class="num">📟</div><h3>表示されたメッセージ・記号</h3><span class="accordion-icon">▼</span>`;
+      }
+      // container (meterCategoryList) と freeTextカード をラップする
+      const originalHtml = container.outerHTML + document.querySelector('#meterMessageSection .glass-card:not(.accordion)').outerHTML;
+      container.outerHTML = `<div id="meterMessageWrap" class="accordion-body" style="display:none;">${originalHtml}</div>`;
+      // 重複したfreeTextカードを消す
+      const cards = document.querySelectorAll('#meterMessageSection .glass-card:not(.accordion)');
+      if (cards.length > 0) cards[cards.length - 1].remove();
+    }
+  }
+
   autoExpandMeterCategories();
 }
 
@@ -2127,13 +2278,28 @@ function renderDeepDive() {
     tipsHtml = `<div style="margin-top:.7rem"><div style="font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.35rem">📌 問診者へのアドバイス</div>${tips}</div>`;
   }
 
-  ac.className = 'glass-card';
-  ac.innerHTML = `
-    <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:.6rem">🤖 AI分析結果</h3>
-    <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
-    ${faults}
-    ${tipsHtml}
-  `;
+  if (isDemoMode2) {
+    ac.className = 'glass-card accordion';
+    ac.innerHTML = `
+      <div class="accordion-header" onclick="toggleAccordion('analysisCardBody')">
+        <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:0;">🤖 AI分析結果 <span style="font-size:0.75rem; color:var(--text-dim); font-weight:normal; margin-left:0.5rem;">(クリックで展開)</span></h3>
+        <span class="accordion-icon">▼</span>
+      </div>
+      <div class="accordion-body" id="analysisCardBody" style="display:none;">
+        <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
+        ${faults}
+        ${tipsHtml}
+      </div>
+    `;
+  } else {
+    ac.className = 'glass-card';
+    ac.innerHTML = `
+      <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:.6rem">🤖 AI分析結果</h3>
+      <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様のご用命：「${esc(complaint)}」</div>
+      ${faults}
+      ${tipsHtml}
+    `;
+  }
 
   // ── 深掘り質問フォーム ──
   const form = document.getElementById('deepdiveForm');
@@ -2389,7 +2555,21 @@ function renderSummary(text) {
           }
         }
         
-        html += `<div class="summary-section"><h4>${icon} ${esc(title)}</h4><div class="summary-content">${esc(body)}${imgHtml}</div></div>`;
+        if (isDemoMode2) {
+          const contentId = `summary_sec_body_${idx}`;
+          html += `
+            <div class="summary-section accordion" style="margin-bottom:0.75rem;">
+              <div class="summary-header" onclick="toggleAccordion('${contentId}')">
+                <h4 style="margin-bottom:0;">${icon} ${esc(title)}</h4>
+                <span class="accordion-icon">▼</span>
+              </div>
+              <div class="summary-body" id="${contentId}" style="display:none;">
+                <div class="summary-content">${esc(body)}${imgHtml}</div>
+              </div>
+            </div>`;
+        } else {
+          html += `<div class="summary-section"><h4>${icon} ${esc(title)}</h4><div class="summary-content">${esc(body)}${imgHtml}</div></div>`;
+        }
       } catch(secErr) {
         console.error('[renderSummary] Section parse error:', secErr, sec);
       }
@@ -2487,6 +2667,13 @@ function goToDiagnosis() {
       if (conclusionCardTitle) conclusionCardTitle.textContent = '診断②：タイミング照合の結論';
     }
     
+    // デモ3画像の出し分け
+    const isDemo3 = isDemoMode3;
+    const demo3Imgs = document.querySelectorAll('.demo3-only-img');
+    demo3Imgs.forEach(el => {
+      el.style.display = isDemo3 ? 'block' : 'none';
+    });
+
     go('s_diagnosis');
   } catch (err) {
     showToast('goToDiagnosis実行エラー: ' + err.message);
@@ -2556,7 +2743,7 @@ function startDiagnosisRead() {
       if (diagResultNormal) diagResultNormal.style.display = 'none';
       if (diagResultDemo3) diagResultDemo3.style.display = 'block';
       if (diagStep2Text) {
-        diagStep2Text.innerHTML = '走行再現テストおよびセンサ単体加振テストの結果より、<strong>悪路走行時の連続的な振動によってセンサー内部に一時的な接触不良（瞬断）が発生する</strong>ことが確認されました。DTC出力やRoB履歴には残らない極めて短い瞬断であるため、診断機での単純読み取りでは検出できない不具合と特定し、<strong>センサー本体の不具合（接触不良）である</strong>と確定診断しました。';
+        diagStep2Text.innerHTML = 'DTC（ダイアグコード）の検出には至らないものの、車両挙動データ（RoB）にて通信遮蔽履歴が確認され、タイムスタンプが問診内容と完全に一致しました。さらに走行再現およびセンサ単体加振テストの結果から、連続的な振動によって引き起こされるセンサー内部の一時的な接触不良（瞬断）の不具合であると確定診断しました。';
         diagStep2Text.style.borderLeftColor = 'var(--accent)';
       }
     } else {
@@ -2594,6 +2781,13 @@ function goToService() {
       demo3Svc.style.display = 'none';
     }
   }
+  
+  // デモ3画像の出し分け
+  const demo3Imgs = document.querySelectorAll('.demo3-only-img');
+  demo3Imgs.forEach(el => {
+    el.style.display = isDemo3 ? 'block' : 'none';
+  });
+  
   go('s_service');
 }
 
@@ -2624,6 +2818,12 @@ function resetAll() {
   
   if (diagReproCard) diagReproCard.style.display = 'none';
   if (reproInit) reproInit.style.display = 'block';
+  
+  // デモ3画像表示リセット（非表示化）
+  const demo3Imgs = document.querySelectorAll('.demo3-only-img');
+  demo3Imgs.forEach(el => {
+    el.style.display = 'none';
+  });
   if (reproLoad) reproLoad.style.display = 'none';
   if (reproResult) reproResult.style.display = 'none';
   if (diagReadCard) diagReadCard.style.display = 'block';
@@ -2786,7 +2986,7 @@ async function callGeminiJson(prompt, retries=3) {
 // ══════════════════════════════════════════════════════════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
+    navigator.serviceWorker.register('./sw.js?v=4.20')
       .then(reg => console.log('[SW] registered:', reg.scope))
       .catch(err => console.warn('[SW] registration failed:', err));
   });

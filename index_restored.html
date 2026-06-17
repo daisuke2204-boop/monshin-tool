@@ -1,0 +1,2826 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>�?��診断 問診サポ�?トツール</title>
+<meta name="description" content="AIが深掘り質問を自動生成し、�?現可能なレベルの問診をサポ�?トしま�?">
+<!-- PWA対�? -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="問診�??ル">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#3b82f6">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0c0e1a;--surface:#141729;--surface2:#1c2038;--surface3:#242845;
+  --glass:rgba(255,255,255,0.04);--glass-border:rgba(255,255,255,0.08);
+  --primary:#3b82f6;--primary-dim:rgba(59,130,246,0.15);
+  --accent:#10b981;--accent-dim:rgba(16,185,129,0.15);
+  --warn:#f59e0b;--warn-dim:rgba(245,158,11,0.12);
+  --danger:#ef4444;--danger-dim:rgba(239,68,68,0.12);
+  --text:#e2e8f0;--text-dim:#94a3b8;--text-muted:#64748b;
+}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.screen{display:none;min-height:100vh;animation:fadeIn .4s ease}
+.screen.active{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:1.5rem;padding-bottom:3rem}
+.screen.center{justify-content:center}
+@keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── 共通部�? ─── */
+.btn{padding:.7rem 1.6rem;border:none;border-radius:10px;font-size:.92rem;font-weight:500;cursor:pointer;font-family:inherit;transition:all .25s;display:inline-flex;align-items:center;gap:.4rem}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.btn-primary{background:linear-gradient(135deg,var(--primary),#6366f1);color:#fff}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(59,130,246,.35)}
+.btn-accent{background:linear-gradient(135deg,var(--accent),#059669);color:#fff}
+.btn-accent:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(16,185,129,.3)}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--glass-border)}
+.btn-secondary:hover:not(:disabled){background:var(--surface3);border-color:var(--primary)}
+.btn-sm{padding:.45rem 1rem;font-size:.82rem;border-radius:8px}
+.glass-card{background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:14px;padding:1.5rem}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.badge-high{background:var(--danger-dim);color:var(--danger);border:1px solid rgba(239,68,68,.25)}
+.badge-mid{background:var(--warn-dim);color:var(--warn);border:1px solid rgba(245,158,11,.25)}
+.badge-low{background:var(--primary-dim);color:var(--primary);border:1px solid rgba(59,130,246,.25)}
+.content-wrap{max-width:820px;width:95%;margin:0 auto}
+.page-title{font-size:1.3rem;font-weight:700;text-align:center;margin-bottom:.3rem}
+.page-sub{text-align:center;color:var(--text-dim);font-size:.85rem;margin-bottom:1.5rem}
+.nav-bar{display:flex;gap:.6rem;margin-top:1.2rem;justify-content:center;flex-wrap:wrap}
+.nav-bar .btn{min-width:140px;justify-content:center}
+
+/* ─── inputs ─── */
+.input-group{margin-bottom:1rem;text-align:left}
+.input-group label{display:block;font-size:.82rem;color:var(--text-dim);margin-bottom:.4rem;font-weight:500}
+.input-group input,.input-group select,.input-group textarea{width:100%;padding:.65rem .85rem;border:1px solid var(--glass-border);border-radius:10px;background:var(--surface2);color:var(--text);font-size:.92rem;font-family:inherit;transition:border-color .2s}
+.input-group input:focus,.input-group select:focus,.input-group textarea:focus{outline:none;border-color:var(--primary)}
+.input-group textarea{resize:vertical;min-height:70px;line-height:1.6}
+
+/* ─── question card ─── */
+.q-card{background:var(--surface);border:1px solid var(--glass-border);border-radius:12px;padding:1rem 1.2rem;margin-bottom:.65rem}
+.q-card .q-label{font-size:.86rem;font-weight:500;margin-bottom:.55rem;line-height:1.5}
+.q-card .q-label .req{color:var(--danger);font-size:.72rem;margin-left:.3rem}
+.q-card .q-hint{font-size:.73rem;color:var(--text-muted);margin-bottom:.5rem;line-height:1.5;font-style:italic}
+.q-card .q-reason{font-size:.73rem;color:var(--accent);margin-top:.45rem;line-height:1.4;padding:.35rem .6rem;background:var(--accent-dim);border-radius:6px}
+.option-grid{display:flex;flex-wrap:wrap;gap:.35rem}
+.opt-item{position:relative}
+.opt-item input{position:absolute;opacity:0;pointer-events:none}
+.opt-item label{display:block;padding:.35rem .75rem;border-radius:8px;font-size:.8rem;cursor:pointer;border:1px solid var(--glass-border);background:var(--surface2);transition:all .2s;user-select:none}
+.opt-item input:checked+label{border-color:var(--primary);background:var(--primary-dim);color:var(--primary);font-weight:500}
+.opt-item input:checked+label::before{content:'�? '}
+.q-card textarea{width:100%;padding:.55rem .7rem;border:1px solid var(--glass-border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:.83rem;font-family:inherit;resize:vertical;min-height:48px;line-height:1.5}
+.q-card textarea:focus{outline:none;border-color:var(--primary)}
+
+/* ─── section header ─── */
+.sec-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem;padding-bottom:.45rem;border-bottom:1px solid var(--glass-border)}
+.sec-header .num{width:24px;height:24px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0}
+.sec-header h3{font-size:.92rem;font-weight:600}
+.sec-header .count{font-size:.72rem;color:var(--text-muted);margin-left:auto}
+
+/* ─── progress stepper ─── */
+.stepper{display:flex;align-items:center;justify-content:center;gap:.3rem;margin-bottom:1.5rem}
+.step{display:flex;align-items:center;gap:.3rem}
+.step-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;border:2px solid var(--glass-border);color:var(--text-muted);transition:all .3s}
+.step.active .step-dot{border-color:var(--primary);background:var(--primary);color:#fff}
+.step.done .step-dot{border-color:var(--accent);background:var(--accent);color:#fff}
+.step-label{font-size:.72rem;color:var(--text-muted);max-width:70px;text-align:center;line-height:1.2}
+.step.active .step-label{color:var(--text)}
+.step.done .step-label{color:var(--accent)}
+.step-line{width:30px;height:2px;background:var(--glass-border);margin:0 .1rem}
+.step.done+.step-line,.step-line.done{background:var(--accent)}
+
+/* ─── analysis card ─── */
+.fault-item{display:flex;align-items:flex-start;gap:.7rem;padding:.7rem .9rem;border-radius:10px;background:var(--surface2);border:1px solid var(--glass-border);margin-bottom:.4rem}
+.fault-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+.fault-info{flex:1}
+.fault-name{font-weight:600;font-size:.86rem;margin-bottom:.15rem}
+.fault-reason{font-size:.75rem;color:var(--text-dim);line-height:1.45}
+.tip-card{padding:.6rem .9rem;border-radius:8px;background:var(--primary-dim);border:1px solid rgba(59,130,246,.2);font-size:.8rem;color:#93c5fd;line-height:1.55;margin-bottom:.4rem}
+.advice-card{padding:.6rem .9rem;border-radius:8px;background:var(--accent-dim);border:1px solid rgba(16,185,129,.2);font-size:.8rem;color:var(--accent);line-height:1.55}
+
+/* ─── summary ─── */
+.summary-section{margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--glass-border)}
+.summary-section:last-child{border-bottom:none}
+.summary-section h4{font-size:.88rem;font-weight:600;margin-bottom:.35rem;color:var(--primary)}
+.summary-content{font-size:.85rem;line-height:1.75;white-space:pre-wrap}
+
+/* ─── chips ─── */
+.chip-wrap{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem}
+.chip{padding:.35rem .8rem;border-radius:20px;font-size:.78rem;background:var(--surface2);border:1px solid var(--glass-border);cursor:pointer;transition:all .2s;color:var(--text-dim)}
+.chip:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-dim)}
+
+/* ─── toast / loading ─── */
+.toast{position:fixed;top:16px;right:16px;padding:.8rem 1.2rem;border-radius:10px;font-size:.85rem;z-index:999;animation:slideUp .3s ease;display:none;max-width:90%;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.toast-error{background:var(--danger);color:#fff}
+.toast-info{background:var(--primary);color:#fff}
+.loading-overlay{position:fixed;inset:0;background:rgba(12,14,26,.88);display:none;align-items:center;justify-content:center;z-index:100;flex-direction:column;gap:1rem}
+.loading-overlay.active{display:flex}
+.loading-overlay .spinner{width:36px;height:36px;border:3px solid var(--glass-border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+.loading-overlay p{color:var(--text-dim);font-size:.9rem;animation:pulse 1.5s ease-in-out infinite}
+
+@media(max-width:600px){
+  .content-wrap{width:97%}
+  .option-grid{gap:.25rem}
+  .stepper{gap:.15rem}
+  .step-label{display:none}
+}
+
+/* ─── iPad / タブレ�?�� タ�?��最適�? ─── */
+@media (pointer: coarse) {
+  .opt-item label{
+    padding:.55rem 1rem;
+    font-size:.88rem;
+    min-height:44px;
+    display:flex;
+    align-items:center;
+  }
+  .btn{
+    padding:.85rem 1.8rem;
+    font-size:1rem;
+    min-height:48px;
+  }
+  .q-card{
+    padding:1.1rem 1.3rem;
+    margin-bottom:.75rem;
+  }
+  .q-card .q-label{
+    font-size:.92rem;
+    margin-bottom:.65rem;
+  }
+  .q-card textarea{
+    font-size:.9rem;
+    padding:.65rem .85rem;
+    min-height:56px;
+  }
+  .input-group input,
+  .input-group select,
+  .input-group textarea{
+    font-size:1rem;
+    padding:.75rem .9rem;
+  }
+  .chip{
+    padding:.45rem .9rem;
+    font-size:.84rem;
+    min-height:40px;
+    display:flex;
+    align-items:center;
+  }
+}
+
+/* ─── iPad横向き?�ランドスケープ）─── */
+@media (min-width:768px) and (pointer: coarse) {
+  .content-wrap{
+    max-width:720px;
+  }
+  .option-grid{
+    gap:.4rem;
+  }
+}
+
+/* ─── PWA スタンドアロン表示時�?安�?領域対�? ─── */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .screen.active{
+    padding-top:calc(1.5rem + env(safe-area-inset-top));
+    padding-bottom:calc(3rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* ─── 警告�?グリ�?�� ─── */
+.warning-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+  gap: .6rem;
+  margin-top: .6rem;
+}
+.warning-item {
+  position: relative;
+}
+.warning-item input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.warning-item label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: .6rem .4rem;
+  border-radius: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all .2s;
+  text-align: center;
+  min-height: 96px;
+}
+.warning-item label img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  margin-bottom: .4rem;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+.warning-item label span {
+  font-size: .68rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.warning-item input:checked+label {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+}
+.warning-item input:checked+label.warn-red {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+}
+.warning-item input:checked+label.warn-yellow {
+  background: var(--warn-dim);
+  border-color: var(--warn);
+}
+.warning-item input:checked+label span {
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .warning-grid {
+    grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+    gap: .7rem;
+  }
+  .warning-item label {
+    padding: .8rem .5rem;
+    min-height: 110px;
+  }
+  .warning-item label img {
+    width: 44px;
+    height: 44px;
+  }
+  .warning-item label span {
+    font-size: .74rem;
+  }
+}
+
+/* ─── アコー�?��オンUI?�デモモー�?2用?? ─── */
+.q-card.accordion {
+  padding: 0;
+  overflow: hidden;
+}
+.accordion-header {
+  padding: 1rem 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+.accordion-header:hover {
+  background-color: var(--surface2);
+}
+.accordion-header .q-label {
+  margin-bottom: 0;
+  flex: 1;
+}
+.accordion-icon {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  transition: transform 0.3s ease;
+  margin-left: 0.5rem;
+}
+.accordion.active .accordion-icon {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+.accordion-body {
+  padding: 0 1.2rem 1.2rem 1.2rem;
+  border-top: 1px solid var(--glass-border);
+  animation: accordionSlideDown 0.3s ease-out;
+}
+@keyframes accordionSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* サマリー用アコー�?��オン */
+.summary-section.accordion {
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--glass);
+  margin-bottom: 0.75rem;
+  padding: 0;
+}
+.summary-header {
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+.summary-header:hover {
+  background-color: var(--surface2);
+}
+.summary-header h4 {
+  margin-bottom: 0;
+  flex: 1;
+}
+.summary-body {
+  padding: 0.8rem 1rem;
+  border-top: 1px solid var(--glass-border);
+  background: var(--surface);
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
+}
+</style>
+</head>
+<body>
+
+<div id="toastEl" class="toast toast-error"></div>
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="spinner"></div>
+  <p id="loadingText">AIが�?析中...</p>
+</div>
+
+<!-- ===== Screen 1: API�L�[ ===== -->
+<div id="s_api" class="screen active center">
+<div class="content-wrap" style="max-width:460px;text-align:center">
+  <div style="font-size:2.6rem;margin-bottom:.3rem">??</div>
+  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">�?��診断 問診サポ�?トツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v3.3</span></h1>
+  <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.8rem;line-height:1.6">AIが深掘り質問を自動生成し<br>再現可能なレベルの問診をサポ�?トしま�?</p>
+  <div class="glass-card" style="text-align:left">
+    <div class="input-group">
+      <label>Gemini API�L�[</label>
+      <input type="password" id="apiKeyInput" placeholder="AIzaSy...">
+    </div>
+    <div class="input-group">
+      <label>使用モ�?��</label>
+      <select id="modelSelect">
+        <option value="gemini-2.5-flash" selected>gemini-2.5-flash?�推奨??</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--text-dim);margin-bottom:1rem">
+      <input type="checkbox" id="saveKey" checked style="accent-color:var(--primary)">
+      <label for="saveKey">APIキーを保�?</label>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="initApp()">はじめ�? �?</button>
+    <div style="display:flex; gap:.5rem; margin-top:.5rem; flex-wrap:wrap">
+      <button class="btn btn-secondary" style="flex:1; min-width:80px; justify-content:center; padding:.7rem .5rem;" onclick="startDemoMode()">�?��1 ?��</button>
+      <button class="btn btn-secondary" style="flex:1; min-width:80px; justify-content:center; padding:.7rem .5rem;" onclick="startDemoMode2()">�?��2 ?��??</button>
+      <button class="btn btn-secondary" style="flex:1; min-width:80px; justify-content:center; padding:.7rem .5rem;" onclick="startDemoMode3()">�?��3 ?��</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 2: ご用命入�? ===== -->
+<div id="s_complaint" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper"></div>
+  <h2 class="page-title">?�� お客様�?ご用命</h2>
+  <p class="page-sub">お客様�?言葉をできる�?けそのまま記録してください?�お客様�?言葉どおりに入力�?</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_complaint.html', '_blank')">?�� こ�?画面のAI判定ロジ�?��を見る</a>
+  </div>
+  <div class="glass-card" id="complaintCard">
+    <div class="accordion-header-wrap" id="complaintHeaderWrap" style="display:none;">
+      <div class="accordion-header" onclick="toggleAccordion('complaintBody')">
+        <h3 style="font-size:0.92rem;font-weight:600;">?�� お客様�?ご用命?��?力�?容??</h3>
+        <span class="accordion-icon">▼</span>
+      </div>
+    </div>
+    <div id="complaintBody">
+      <div class="input-group">
+        <label>ご用命�?�� <span style="color:var(--text-muted); font-size:0.75rem; font-weight:normal">?�お客様�?言葉どおりに入力�?</span></label>
+        <textarea id="complaintInput" rows="3" placeholder="�?: 曲がり角で普段と違う音がするよ�?��なっ�?"></textarea>
+      </div>
+      <label style="font-size:.78rem;color:var(--text-dim);display:block;margin-bottom:.4rem" id="exampleLabel">入力例（クリ�?��で挿入??</label>
+      <div class="chip-wrap" id="exampleChips">
+        <span class="chip" onclick="fillExample(this)">ブレーキを踏�?とキーキー音がす�?</span>
+        <span class="chip" onclick="fillExample(this)">高速でハンドルが小刻みに�?���?</span>
+        <span class="chip" onclick="fillExample(this)">段差を越えるとガタガタ異音がす�?</span>
+        <span class="chip" onclick="fillExample(this)">右に曲がるとゴリゴリ音がす�?</span>
+        <span class="chip" onclick="fillExample(this)">アイドリング中に車体がブルブル揺れる</span>
+      </div>
+    </div>
+    <div class="nav-bar">
+      <button class="btn btn-secondary" onclick="go('s_api')">�? 設�?</button>
+      <button class="btn btn-primary" style="flex:1" onclick="goIntake()">共通問診へ �?</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 3: 共通問診?��?診?? ===== -->
+<div id="s_intake" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper2"></div>
+  <h2 class="page-title">?�� 共通問診?��?診シート�?</h2>
+  <p class="page-sub">すべてのお客様に共通してお聞きする基本�?��で�?</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_intake.html', '_blank')">?�� こ�?画面のAI判定ロジ�?��を見る</a>
+  </div>
+
+  <!-- 基本�??� -->
+  <div class="sec-header"><div class="num">1</div><h3>基本�??�</h3></div>
+  <div id="intakeBasic"></div>
+
+  <!-- 発生状�? -->
+  <div class="sec-header" style="margin-top:1rem"><div class="num">2</div><h3>発生状�?</h3></div>
+  <div id="intakeCondition"></div>
+
+  <!-- �?��の特徴 -->
+  <div class="sec-header" style="margin-top:1rem"><div class="num">3</div><h3>�?��の特徴</h3></div>
+  <div id="intakeDetail"></div>
+
+  <!-- 異音・振動�?詳細?�条件付き表示?? -->
+  <div id="intakeNvhSection" style="margin-top:1rem">
+    <div class="sec-header"><div class="num">4</div><h3>異音・振動�?詳細</h3></div>
+    <div id="intakeNvh"></div>
+  </div>
+
+  <!-- エアコンの詳細?�条件付き表示?? -->
+  <div id="intakeAcSection" style="margin-top:1rem; display:none;">
+    <div class="sec-header"><div class="num">�?�?</div><h3>エアコンの詳細</h3></div>
+    <div id="intakeAc"></div>
+  </div>
+
+  <!-- そ�?�? -->
+  <div id="intakeOtherSection" style="margin-top:1rem">
+    <div class="sec-header"><div class="num">4</div><h3>そ�?�?</h3></div>
+    <div id="intakeOther"></div>
+  </div>
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_complaint')">�? 戻�?</button>
+    <button class="btn btn-primary" style="flex:1" onclick="goNextFromIntake()">次へ �?</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 3.5: メーター表示メ�?��ージ特�? ===== -->
+<div id="s_meter" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper2b"></div>
+  <h2 class="page-title">?�� メーター表示・警告�?の特�?</h2>
+  <p class="page-sub">点灯して�?��警告�?�?��表示されたメ�?��ージを選んでください?��?��可??</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_meter.html', '_blank')">?�� こ�?画面のAI判定ロジ�?��を見る</a>
+  </div>
+
+  <!-- 警告�?のビジュアル選�? -->
+  <div id="warningLightSection" style="margin-bottom:1.5rem; display:none;">
+    <div class="sec-header"><div class="num">?��</div><h3>点灯して�?��警告�??�ランプ�?マ�?ク??</h3></div>
+    <div class="warning-grid" id="warningGrid"></div>
+  </div>
+
+  <!-- メーターメ�?��ージの選�? -->
+  <div id="meterMessageSection" style="display:none; margin-bottom:1.5rem;">
+    <div class="sec-header"><div class="num">?��</div><h3>表示されたメ�?��ージ・記号</h3></div>
+    <div id="meterCategoryList"></div>
+
+    <div class="glass-card" style="margin-top:1rem">
+      <div class="input-group">
+        <label>上記�?一覧にな�??�合、覚えて�?���?��を記�?してください</label>
+        <textarea id="meterFreeText" placeholder="�?: ○○シス�?��異常 と表示され�?" oninput="intakeSet('i_meter_freetext',this.value)"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_intake')">�? 共通問診に戻�?</button>
+    <button class="btn btn-primary" style="flex:1" onclick="goDeepDiveFromMeter()">?�? AIに深掘り質問を生�?してもら�?</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 4: AI深掘り問診 ===== -->
+<div id="s_deepdive" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper3"></div>
+  <h2 class="page-title">?�� AI深掘り問診</h2>
+  <p class="page-sub">共通問診の回答をもとに、AIが�?現条件を特定するため�?質問を生�?しました</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_deepdive.html', '_blank')">?�� こ�?画面のAI判定ロジ�?��を見る</a>
+  </div>
+
+  <!-- AI�?��結果 -->
+  <div class="glass-card" id="analysisCard" style="margin-bottom:1rem"></div>
+
+  <!-- 深掘り質�? -->
+  <div id="deepdiveForm"></div>
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="goBackFromDeepdive()">�? 戻�?</button>
+    <button class="btn btn-accent" style="flex:1" onclick="generateSummary()">�? 問診完�? �? サマリー生�?</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 5: サマリー ===== -->
+<div id="s_summary" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper4"></div>
+  <h2 class="page-title">?�� 問診サマリー</h2>
+  <p class="page-sub">こ�?�??�をもとに不�?合�?再現・診断を行ってください</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_summary.html', '_blank')">?�� こ�?画面のAI判定ロジ�?��を見る</a>
+  </div>
+  <div class="glass-card" id="summaryContent"></div>
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_deepdive')">�? 問診に戻�?</button>
+    <button class="btn btn-primary" onclick="copySummary()">?�� コピ�?</button>
+    <button class="btn btn-accent" id="summaryDiagBtn" style="display:none;" onclick="goToDiagnosis()">?�� 診断へ �?</button>
+    <button class="btn btn-accent" id="summaryResetBtn" onclick="resetAll()">?�� 新しい問診</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 6: 車両診断 (s_diagnosis) ===== -->
+<div id="s_diagnosis" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper5"></div>
+  <h2 class="page-title">?�� 車両診断?�データ裏取り�?物�?��検�?</h2>
+  <p class="page-sub">実車�?物�?��な状態と、診断機から得られる�??タログの確認を行いま�?</p>
+  
+  <!-- 診断�? 物�?���? -->
+  <div class="glass-card" style="margin-bottom:1rem">
+    <div class="sec-header">
+      <div class="num">1</div>
+      <h3>診断�??�物�?��検（目視点検�?</h3>
+    </div>
+    <div style="font-size:0.88rem; line-height:1.6; color:var(--text); display:flex; flex-direction:column; gap:0.6rem;">
+      <div style="padding:0.7rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+        <strong>?�� センサ表面の目視確�?</strong>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">センサ表面に傷�?��れ、およ�?明らかな汚れの残り?�乾�?��泥など?�がな�?��確認します�?</p>
+        <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center;">
+          <img src="summary_image/diag_demo3_01_surface.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        </div>
+      </div>
+      <div style="padding:0.7rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+        <strong>?�� センサの取付状態�?確�?</strong>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">センサス�??の曲がり�?��バンパ�?のズレ・浮きによって検知方向がずれて�?���?��物�?��に裏取りを行います�?</p>
+        <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center;">
+          <img src="summary_image/diag_demo3_02_bracket.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 診断② 再現�?��ト（デモ3専用?? -->
+  <div class="glass-card" id="diagReproCard" style="margin-bottom:1rem; display:none;">
+    <div class="sec-header">
+      <div class="num">2</div>
+      <h3>診断②?�走行環�?��よる再現�?���?</h3>
+    </div>
+    <!-- シミュレーション前でも画像を表示 -->
+    <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center; margin-bottom: 0.6rem;">
+      <img src="summary_image/diag_demo3_03_repro.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+    </div>
+    <div id="reproInitialSection" style="text-align:center; padding:1.2rem 0;">
+      <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1rem;">
+        問診で確認された再現路面?�ガタガタ道）での試乗、また�?工場�?��擬似�?��振動を与える加振再現�?��トを行います�?
+      </p>
+      <button class="btn btn-primary" id="reproStartBtn" onclick="startDemo3Repro()">?�� 再現�?��ト（実車加振?�開�?</button>
+    </div>
+    
+    <!-- 再現中ロー�?��ング -->
+    <div style="display:none; text-align:center; padding:1.5rem 0;" id="reproLoadingSection">
+      <div style="width:30px; height:30px; border:3px solid var(--glass-border); border-top-color:var(--primary); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 0.8rem;"></div>
+      <p style="font-size:0.83rem; color:var(--primary); animation:pulse 1.5s ease-in-out infinite;">悪路走行環�?��シミュレート中?�車両�?振中??...</p>
+    </div>
+
+    <!-- 再現結果 -->
+    <div id="reproResultSection" style="display:none; font-size:0.85rem; line-height:1.6;">
+      <div style="padding:0.8rem; background:rgba(239, 68, 68, 0.08); border:1px solid rgba(239, 68, 68, 0.2); border-radius:8px;">
+        <span class="badge" style="background:rgba(239, 68, 68, 0.2); color:#ef4444; border-color:rgba(239, 68, 68, 0.3); margin-bottom:0.4rem;">再現結果</span>
+        <div style="font-weight:600; font-size:0.95rem; color:#ef4444; display:flex; align-items:center; gap:0.3rem;">?�� 警告�?・メ�?��ージの「点灯・消�?」�?現象を�?現</div>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">悪路走行（連続した振動）を再現したところ、メーターパネルのクリアランスソナ�?OFF表示灯が「点灯」し、振動を止めるとし�?らくして「消�?」することを確認しました�?</p>
+      </div>
+    </div>
+  </div>
+
+    <!-- �f�f�@�ł̃f�[�^����� -->
+  <div class="glass-card" style="margin-bottom:1rem" id="diagReadCard">
+    <div class="sec-header">
+      <div class="num" id="diagCardNum">2</div>
+      <h3 id="diagCardTitle">�f�f�@�Ńf�[�^�����i�_�C�A�O�E�������O�j</h3>
+    </div>
+    <!-- �V�~�����[�V�����O�ł��摜��\���i�f��3��p�j -->
+    <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center; margin-bottom: 0.6rem;">
+      <img src="summary_image/diag_demo3_04_scan.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+    </div>
+    <div style="text-align:center; padding:1.2rem 0;" id="diagInitialSection">
+      <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1rem;" id="diagInitialText">OBD-II�R�l�N�^�ɐf�f�@��ڑ����A�ԗ�ECU����DTC�i�_�C�A�O�R�[�h�j��RoB�i�ԗ������f�[�^�j��ǂݎ��܂��B</p>
+      <button class="btn btn-primary" id="diagStartBtn" onclick="startDiagnosisRead()">? �f�f�@�ڑ���A�ǂݎ��J�n</button>
+    </div>
+    
+    <!-- ���[�f�B���O�\�� -->
+    <div style="display:none; text-align:center; padding:1.5rem 0;" id="diagLoadingSection">
+      <div style="width:30px; height:30px; border:3px solid var(--glass-border); border-top-color:var(--primary); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 0.8rem;"></div>
+      <p style="font-size:0.83rem; color:var(--primary); animation:pulse 1.5s ease-in-out infinite;">�ԗ�ECU�ƒʐM��... DTC/RoB�f�[�^���擾���Ă��܂�</p>
+    </div>
+    
+    <!-- �f�f���ʃf�[�^�i�f��1�E2�p�j -->
+    <div id="diagResultNormal" style="display:none; font-size:0.85rem; line-height:1.6;">
+      <div style="padding:0.8rem; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.2); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-low" style="background:rgba(16, 185, 129, 0.2); color:#10b981; border-color:rgba(16, 185, 129, 0.3); margin-bottom:0.4rem;">DTC (�_�C�A�O�R�[�h)</span>
+        <div style="font-weight:600; font-size:0.95rem; color:#10b981;">? ����i�̏�R�[�h�̏o�͂Ȃ��j</div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.25rem;">�P�v�I�ȓd�C�I�f��������̏�R�[�h�͋L�^����Ă��܂���B</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--surface2); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-mid" style="margin-bottom:0.4rem;">RoB (�ԗ������f�[�^)</span>
+        <div style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:0.2rem;">
+          <span style="font-family:monospace; font-weight:700; font-size:1rem; color:var(--warn);">[X20C6]</span>
+          <span style="font-weight:600; font-size:0.88rem;">�E���g���\�j�b�N�Z���T (�t�����g�R�[�i�E) �ꎞ�g�p�s�� - ���v��</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim);">�Z���T�ʐM�̈ꎞ�I�ȎՕ��E�@�\�ቺ�̗������ԗ����O�ɋL�^����Ă��܂��B</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--primary-dim); border:1px solid rgba(59, 130, 246, 0.25); border-radius:8px;">
+        <span class="badge badge-high" style="background:var(--primary-dim); color:var(--primary); border-color:rgba(59, 130, 246, 0.3); margin-bottom:0.4rem;">�^�C���X�^���v�ƍ�</span>
+        <div style="font-weight:600; font-size:0.9rem; color:#60a5fa; display:flex; align-items:center; gap:0.3rem;">? ��f�̕s����������Ɗ��S�Ɉ�v</div>
+        <div style="margin-top:0.3rem; padding:0.4rem; background:rgba(0,0,0,0.2); border-radius:4px; font-family:monospace; font-size:0.8rem; color:var(--text-dim);">
+          - ��f�񓚂̔��������F<span style="color:#60a5fa;" class="diag-intake-time" id="diagIntakeTime">2�T�ԑO�̓��j���A14����</span><br>
+          - �ԗ�RoB�̋L�^�����F<span style="color:#60a5fa;" class="diag-rob-time" id="diagRobTime">2�T�ԑO�̓��j�� 14:00</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.3rem;">���q�l���x�����_���i�D�͂ˁj��̊����������ƁAECU���ꎞ�g�p�s�����m������������v���A�s��̈����֌W�����t�����܂����B</p>
+      </div>
+    </div>
+
+    <!-- �f�f���ʃf�[�^�i�f��3�p�j -->
+    <div id="diagResultDemo3" style="display:none; font-size:0.85rem; line-height:1.6;">
+      <div style="padding:0.8rem; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.2); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-low" style="background:rgba(16, 185, 129, 0.2); color:#10b981; border-color:rgba(16, 185, 129, 0.3); margin-bottom:0.4rem;">DTC (�_�C�A�O�R�[�h)</span>
+        <div style="font-weight:600; font-size:0.95rem; color:#10b981;">? ����i�̏�R�[�h�̏o�͂Ȃ��j</div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.2rem;">�P�v�I�ȓd�C�I�f��������̏�R�[�h�͋L�^����Ă��܂���B</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--surface2); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-mid" style="margin-bottom:0.4rem;">RoB (�ԗ������f�[�^)</span>
+        <div style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:0.2rem;">
+          <span style="font-family:monospace; font-weight:700; font-size:1rem; color:var(--warn);">[X20C6]</span>
+          <span style="font-weight:600; font-size:0.88rem;">�E���g���\�j�b�N�Z���T (�t�����g�R�[�i�E) �ꎞ�g�p�s�� - ���v��</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim);">�Z���T�ʐM�̈ꎞ�I�ȎՕ��E�@�\�ቺ�̗������ԗ����O�ɋL�^����Ă��܂��B</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--primary-dim); border:1px solid rgba(59, 130, 246, 0.25); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-high" style="background:var(--primary-dim); color:var(--primary); border-color:rgba(59, 130, 246, 0.3); margin-bottom:0.4rem;">�^�C���X�^���v�ƍ�</span>
+        <div style="font-weight:600; font-size:0.9rem; color:#60a5fa; display:flex; align-items:center; gap:0.3rem;">? ��f�̕s����������Ɗ��S�Ɉ�v</div>
+        <div style="margin-top:0.3rem; padding:0.4rem; background:rgba(0,0,0,0.2); border-radius:4px; font-family:monospace; font-size:0.8rem; color:var(--text-dim);">
+          - ��f�񓚂̔��������F<span style="color:#60a5fa;" class="diag-intake-time">2�T�ԑO�̓��j���A14����</span><br>
+          - �ԗ�RoB�̋L�^�����F<span style="color:#60a5fa;" class="diag-rob-time">2�T�ԑO�̓��j�� 14:00</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.3rem;">���q�l���x�����_���i���H�U���j��̊����������ƁAECU���ꎞ�g�p�s�����m������������v���A�s��̈��ʊ֌W�����t�����܂����B</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--surface2); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-high" style="background:var(--primary-dim); color:var(--primary); border-color:rgba(59, 130, 246, 0.3); margin-bottom:0.4rem;">���l�s��̏C�����сi����1�N�j</span>
+        <div style="font-size:0.8rem; color:var(--text); display:flex; flex-direction:column; gap:0.25rem;">
+          <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.2rem;"><span>? �Z���T�[�{�̓����s��i�ڐG�s�Ǌ܂ށj</span><strong style="color:var(--accent);">5��</strong></div>
+          <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.2rem;"><span>? �n�[�l�X�E�R�l�N�^�ڑ��s��</span><strong style="color:var(--accent);">2��</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span>? �R���s���[�^�iECU�j�ُ�</span><strong style="color:var(--accent);">1��</strong></div>
+        </div>
+      </div>
+
+      <div style="padding:0.8rem; background:rgba(245, 158, 11, 0.08); border:1px solid rgba(245, 158, 11, 0.25); border-radius:8px;" id="diagSensorTestSection">
+        <span class="badge" style="background:rgba(245, 158, 11, 0.2); color:#f59e0b; border-color:rgba(245, 158, 11, 0.3); margin-bottom:0.4rem;">�Z���T�[�P�̉��U�e�X�g�i�ǉ��_���j</span>
+        <div style="font-weight:600; font-size:0.9rem; color:#fbbf24; display:flex; align-items:center; gap:0.3rem;">?? �Z���T�P�̉��U�ɂ��f�[�^���j�^�[���ʂ��u�ꎞ�̏�v�ɕω�</div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.25rem;">�t�����g�Z���^�E�Z���T�[�P�̂����O���A�f�f�@�̃f�[�^���j�^�[���ώ@���Ȃ�������ȐU���i���U�j��^�����Ƃ���A���j�^�[�̃X�e�[�g���u����v����u�ꎞ�̏�v�ɐ؂�ւ�錻�ۂ������B�Z���T�[�����̐ڐG�s�ǂƓ��肵�܂����B</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- �f�f�B ���_�i���I���������Ή��j -->
+  <div class="glass-card" id="diagStep2Section" style="margin-bottom:1rem; display:none;">
+    <div class="sec-header">
+      <div class="num" id="conclusionCardNum">3</div>
+      <h3 id="conclusionCardTitle">�f�f�A�F�^�C�~���O�ƍ��̌��_</h3>
+    </div>
+    <div style="font-size:0.85rem; line-height:1.6; color:var(--text);">
+      <p style="padding:0.75rem; background:rgba(16, 185, 129, 0.08); border-left:3px solid var(--accent); border-radius:4px;" id="diagStep2Text">
+        RoB�ɋL�^����Ă���u�Z���T�ʐM�ُ�/�Օ��v�̓����f�[�^���A��f�ŕ����o�����u���q�l�������E������̊������^�C�~���O�v�Ɗ��S�Ɉ�v���邱�Ƃ��m�F���܂����B����ɂ��A<strong>�Z���T�̕����I�j���ł͂Ȃ��A�ꎞ�I�ȕt�����i�D�͂ˁj�������ł���</strong>�Ɗm��f�f���܂����B
+      </p>
+      <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center;">
+        <img src="summary_image/diag_demo3_05_conclusion.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_summary')">�� �T�}���[�ɖ߂�</button>
+    <button class="btn btn-accent" style="flex:1" id="goToServiceBtn" onclick="goToService()" disabled>? ������ ��</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 7: �������� (s_service) ===== -->
+<div id="s_service" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper6"></div>
+  <h2 class="page-title">? �����E�C�������i���ʂ̂������j</h2>
+  <p class="page-sub">�f�f�Ŋm�肵�������Ɋ�Â��A�����I�ȏ��u�Ƃ��q�l�ւ̔[���̂����������s���܂�</p>
+  
+  <!-- �������e�i�f��1�E2�p�j -->
+  <div id="serviceContentNormal" style="display:block;">
+    <div class="glass-card" style="margin-bottom:1rem">
+      <div class="sec-header">
+        <div class="num">??</div>
+        <h3>�������e</h3>
+      </div>
+      <div style="font-size:0.88rem; line-height:1.6; color:var(--text); display:flex; flex-direction:column; gap:0.6rem;">
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>? �����@�F�Z���T�\�ʂ̐��|</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">�t�����g�E�R�[�i�[�Z���T�̕\�ʂɕt�����Ă����������D�Ȃǂ̉�������ꂢ�ɐ��|�E�������܂��B</p>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>? �����A�F���Ԃł̍쓮�m�F</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">���|��A�V�X�e���Ɉُ킪�Ȃ����ƁA����ьx�����⃁�b�Z�[�W���������A��Q�����m�@�\������ɍ쓮���邱�Ƃ̍ŏI�`�F�b�N���s���܂��B</p>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>? �����B�F���q�l�ւ̃��J�j�Y������</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">�戵�������ɋL�ڂ���Ă���u�쓮�����E�Z���T�̎Օ��v�̃y�[�W�����q�l�ƈꏏ�Ɍ��Ȃ���A�J�V���̓D�͂˂ɂ��ꎞ�I�ȋ@�\��~�̃��J�j�Y����������A���i�ُ�ł͂Ȃ����Ƃ����������܂��B</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- �������e�i�f��3�p�j -->
+  <div id="serviceContentDemo3" style="display:none;">
+    <div class="glass-card" style="margin-bottom:1rem">
+      <div class="sec-header">
+        <div class="num">??</div>
+        <h3>�������e</h3>
+      </div>
+      <div style="font-size:0.88rem; line-height:1.6; color:var(--text); display:flex; flex-direction:column; gap:0.6rem;">
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>? �����@�F�s��Z���T�[�̕��i����</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">�t�����g�o���p�[�����O���A�����̃t�����g�Z���^�E�Z���T�[��V�i�Z���T�[�֌������܂��B�i��Ɠ��e: �o���p�[�E���A�Z���T�[�E���E�����j</p>
+          <!-- �����@�摜�\���i�f��3��p�j -->
+          <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center;">
+            <img src="summary_image/service_demo3_01_replace.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+          </div>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>? �����A�F������̃G�[�~���O�i����E�o�^�Z���j</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">�V�i�Z���T�[�����ɔ����A�K��̍Z���菇�i�G�[�~���O�j�����{���܂��B</p>
+          <!-- �����A�摜�\���i�f��3��p�j -->
+          <div class="demo3-only-img" style="display: none; margin-top: 0.6rem; text-align: center;">
+            <img src="summary_image/service_demo3_02_aiming.png" style="max-width: 100%; max-height: 180px; border-radius: 6px; border: 1px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+          </div>
+          <div style="margin-top:0.35rem; padding:0.5rem; background:rgba(0,0,0,0.25); border-radius:6px; font-size:0.78rem; color:var(--text-dim); display:flex; flex-direction:column; gap:0.25rem;">
+            <span>1. <strong>�������:</strong> �^�C����C�������A�ԍ��E�ύڏ�Ԃ̊m�F�A���S�����ȏ��ւ̐ݒu�B</span>
+            <span>2. <strong>�����E�p�x����:</strong> �o���p�[�ݒu�����Ɗe���Z���T�[�̌X�Ίp�𐸖��ɑ���B</span>
+            <span>3. <strong>�o�^�ݒ�:</strong> �f�f�@��ڑ����A����l���ԗ�ECU�֓��͂��ď����Z�������{�B</span>
+          </div>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>? �����B�F���Ԃł̍쓮�m�F</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">�����E�G�[�~���O������A�x�������������A��Q��������Ɍ��m����邱�Ƃ̍ŏI�m�F���s���܂��B</p>
+        </div>
+        <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+          <strong>? �����C�F���q�l�ւ̃��J�j�Y������</strong>
+          <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">�Z���T�[�����̋ɂ߂Ĕ����Ȓf���i�ڐG�s�ǁj�ɂ��A���H�U���Ōx�������o���肵�Ă������Ƃ��f�[�^���������ɉ�����A�V�i�����ƍZ���̊��������񍐂��܂��B</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_diagnosis')">�� �f�f�ɖ߂�</button>
+    <button class="btn btn-primary" style="flex:1" onclick="resetAll()">? �V������f���͂��߂�</button>
+  </div>
+</div>
+</div>
+
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  �??タ定義: 共通問診?��?診シート�?
+// ══════════════════════════════════════════════════════════════
+const INTAKE_BASIC = [
+  { id:'i_onset', label:'�?���?��ら発生して�?��すか??', type:'radio', required:true,
+    options:['本日/昨日','数日�?','1週間以�?','1ヶ月以�?','1ヶ月以上前','不�?'] },
+  { id:'i_frequency', label:'発生する�?�度はどのくら�?��すか??', type:'radio', required:true,
+    options:['常に発生す�?','ほぼ毎回','時�?','稀に?��?現しにくい??'] },
+  { id:'i_weather', label:'発生するとき�?天気�?どれですか?�（�?��可??', type:'checkbox', required:false,
+    options:['晴�?','�?��','雨','雪','天気�?関係な�?/わからな�?'] },
+  { id:'i_trigger', label:'きっかけとなった�?来事�?ありましたか�?', type:'text', required:false,
+    hint:'�?: 縁石に乗り上げた、タイヤを交換した�?��距離を走っ�? など' },
+];
+
+const INTAKE_CONDITION = [
+  { id:'i_location_place', label:'どのような場所で発生しますか?�（�?��可??', type:'checkbox', required:false,
+    options:['駐車�?��?���??�所','一般道（街乗り・郊外�?','高速道路','坂道','場所は関係な�?/わからな�?'] },
+  { id:'i_traffic', label:'渋滞�?状況�?ど�?��したか？（�?��可??', type:'checkbox', required:false,
+    options:['渋滞して�?��と�?','渋滞して�?���?��ス�?ーズに流れて�?��?�と�?','関係な�?/わからな�?'] },
+  { id:'i_road', label:'どのような道路?�路面?�で発生しますか?�（�?��可??', type:'checkbox', required:false,
+    options:['平らできれ�?��道（アスファルト�?�?��??','�?��ボコした道（段差�?��路のつなぎ目など、一時的な衝撃??','荒れた道?��?�利道や未舗�?��など�?��続する振動�?衝撃??','関係な�?/わからな�?'] },
+  { id:'i_symptom_type', label:'気になって�?���?��はどれですか?�（�?��可??', type:'checkbox', required:true,
+    options:['異音がす�?','振動がある','エンジンの調子が悪�?','メーターに警告やメ�?��ージが�?�?','走行中に違和感がある','エアコンが効かな�??不�?合がある','電�?��?�ライト�?ナビ・窓等）�?不�?�?','そ�?�?'] },
+  { id:'i_speed', label:'どのくら�??スピ�?ド（車速）で発生しますか?�（�?��可??', type:'checkbox', required:false,
+    options:['車が止まって�?��と�?','�?��くり走って�?��とき（�?30km/h以下�?','普通�?速さで走って�?��とき�?30�?60km/h??','速いスピ�?ドで走って�?��とき�?60km/h以上�?','どのスピ�?ドでも発生す�?','わからな�?'] },
+  { id:'i_engine_temp', label:'エンジンの温まり�?合�?ど�?��したか？（�?��可??', type:'checkbox', required:false,
+    options:['エンジンが�?えて�?��とき（朝一番の始動直後など??','エンジンが十�?��温まって�?��とき（しばらく走った後�?','関係な�?/わからな�?'] },
+  { id:'i_operation', label:'どんな操作や車�?状態�?ときに発生しますか?�（�?��可??', type:'checkbox', required:false,
+    options:[
+      'エンジンをかけたと�?',
+      'エンジンがかかった状態で止まって�?��とき（アイドリング??',
+      '車が止まって�?��状態でハンドルを回したとき（据え�?り�?',
+      '前に進み始めるとき（前進??',
+      'アクセルを踏んでスピ�?ドを上げて�?��とき（加速�?',
+      'スピ�?ドを一定に保って走って�?��と�?',
+      'アクセルを離してスピ�?ドが落ちて�?��とき（減速�?',
+      'ブレーキペダルを踏んで�?��と�?',
+      'バック?�後退?�して�?��と�?',
+      'ハンドルを回して�?��とき（カーブを曲がるときなど??',
+      'ギヤ?�シフトレバ�??�を�?��替えたとき�?からD、Rに入れるときなど??',
+      'ギヤが�?動で�?��替わるとき（変速時??',
+      '段差�?��コボコを乗り越えたと�?',
+      '常に発生して�?��'
+    ] },
+];
+
+const INTAKE_DETAIL = [
+  { id:'i_occurrence', label:'こ�?�?��は何回くら�?��きて�?��すか??', type:'radio', required:false,
+    options:['一度�?け発生し�?','数回発生し�?','何度も繰り返し発生して�?��','常に発生して�?��','わからな�?'] },
+  { id:'i_sound_type', label:'音の種類�?どれに近いですか?�（�?��可??', type:'checkbox', required:false,
+    options:['キーキー?�高い金属音??','ゴーゴー?�低い連続音??','カタカタ/カラカラ','ガタガタ/ゴトゴ�?','ゴリゴリ?�擦れるような音??','キュルキュル?��?ルト�?ような音??','ブ�?ン/ウーン?�こもるような音??','コンコン/コ�?���?','音はしな�?/わからな�?','そ�?�?'],
+    showIf: 'nvh' },
+  { id:'i_location', label:'音�?��動�?どのあたりから聞こえ?�感じ）ますか?�（�?��可??', type:'checkbox', required:false,
+    options:['前�?方?�エンジン側??','後ろの方?�トランク側??','右側','左側','車体�?下（下回り�?','エンジンルー�?','室�?��ダ�?��ュボ�?ドなど??','ハンドル周�?','足�?���?ダルなど??','わからな�?'],
+    showIf: 'nvh' },
+  { id:'i_vibration_where', label:'振動�?どこで感じますか?�（�?��可??', type:'checkbox', required:false,
+    options:['ハンドル','ブレーキペダル','アクセルペダル','シート（座席??','床（フロア??','車体�?�?','振動�?な�?/感じな�?'],
+    showIf: 'nvh' },
+  { id:'i_warning_light', label:'メーターの中に警告�??�ランプ）が点灯して�?��ことはありましたか？（�?��可??', type:'checkbox', required:false,
+    options:['点灯したことはな�?','点灯して�?��が今�?消えて�?��','今も常に点灯して�?��','チカチカ点�?��て�?��/して�?��','�?��の警告�?が同時につ�?���?��/�?��','わからな�?'] },
+  { id:'i_meter_message', label:'メーター�?��ィスプレイに普段見かけな�?���?��ージ�?��号?��?ーク?�が表示されたことはありましたか？（�?��可??', type:'checkbox', required:false,
+    options:['�?�??�メ�?��ージ?�が表示され�?','記号�??ークが表示され�?','�?�?と記号の両方が表示され�?','表示されたことはな�?','わからな�?��覚えて�?���?'] },
+  { id:'i_ac_type', label:'エアコンの�?��はどのような状態ですか?�（�?��可??', type:'checkbox', required:false,
+    options:[
+      '「�?房」が効かな�?���?たい風が�?な�?�?',
+      '「暖房」が効かな�?��温かい風が�?な�?�?',
+      '冷房・暖房ともに効かな�?',
+      '風自体が全く�?な�?',
+      '風は出るが�?��量が弱�?',
+      '風がカビ�?�?��また�?異臭がす�?',
+      'そ�?他（�?体的に教えてください??'
+    ],
+    showIf: 'ac' },
+  { id:'i_ac_detail', label:'エアコンの不�?合につ�?��、その他気になることがあれ�?記�?してください', type:'text', required:false,
+    showIf: 'ac' },
+  { id:'i_trend', label:'�?��は変化して�?��すか??', type:'radio', required:false,
+    options:['�?んだん�?どくなって�?��','変わらな�?','良くなって�?��','日によって?�また�?乗る人によって?�違�?','わからな�?'] },
+];
+
+const INTAKE_OTHER = [
+  { id:'i_other_remarks', label:'他に気になる点・お気づきになられた点はござ�?��すか??', type:'text', required:false }
+];
+
+// ══════════════════════════════════════════════════════════════
+//  状�?
+// ══════════════════════════════════════════════════════════════
+let apiKey = '', selectedModel = 'gemini-2.5-flash';
+let complaint = '';
+let intakeAnswers = {};   // 共通問診の回�?
+let intakeOtherTexts = {}; // 共通問診の「その他」�?由記述�?��ス�?
+let deepdiveResult = null; // AIが生成した深掘り結果
+let deepdiveAnswers = {};  // 深掘り問診の回�?
+let deepOtherTexts = {};   // 深掘り問診の「その他」�?由記述�?��ス�?
+let summaryText = '';
+let meterMessages = [];   // スプレ�?��シートから読み込んだメーター表示メ�?��ージ一覧
+let warningLights = [];   // スプレ�?��シートから読み込んだ警告�?一覧
+let isDemoMode = false;   // �?��モードフラグ
+let isDemoMode2 = false;  // �?��モー�?2フラグ
+let isDemoMode3 = false;  // �?��モー�?3フラグ
+let isDiagRead = false;   // 診断機データ読み取り完�?��ラグ
+let isDemo3ReproRun = false; // �?��3走行�?現�?��ト実行フラグ
+
+function useAccordionUI() {
+  // �?��1??sDemoModeが真で、かつ�?��2・3がいずれも偽?��?みアコー�?��オンUIを適用しな�?
+  if (isDemoMode && !isDemoMode2 && !isDemoMode3) {
+    return false;
+  }
+  return true;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Googleスプレ�?��シートからメーター表示・警告�?マスターを読み込む
+// ══════════════════════════════════════════════════════════════
+const SHEET_ID = '10rjXdjKBhCeBfkzr0HRNe41GBglmhx2zMxpe3uZmObE';
+const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=0`;
+const WARNING_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('警告�?マスター')}`;
+
+async function loadMeterMessages() {
+  try {
+    const res = await fetch(SHEET_CSV_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const csv = await res.text();
+    const rows = parseCSV(csv);
+    // 1行目はヘッダー�?2行目以降が�??タ
+    meterMessages = rows.slice(1)
+      .filter(r => r[0] && r[1] && r[0] !== '(空�?)')
+      .map(r => ({
+        category: r[0].replace(/^"|"$/g, '').trim(),
+        message:  r[1].replace(/^"|"$/g, '').replace(/^\u201c|\u201d$/g, '').trim(),
+        note:     (r[2] || '').replace(/^"|"$/g, '').trim()
+      }));
+    console.log(`[MeterDB] ${meterMessages.length}件のメ�?��ージを読み込みました`);
+  } catch(e) {
+    console.warn('[MeterDB] スプレ�?��シート読み込み失�?:', e.message);
+  }
+}
+
+async function loadWarningLights() {
+  try {
+    const res = await fetch(WARNING_SHEET_CSV_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const csv = await res.text();
+    const rows = parseCSV(csv);
+    // 1行目はヘッダー
+    warningLights = rows.slice(1)
+      .filter(r => r[0] && r[1])
+      .map(r => ({
+        image: r[0].replace(/^"|"$/g, '').trim(),
+        name:  r[1].replace(/^"|"$/g, '').trim(),
+        category: (r[2] || '').replace(/^"|"$/g, '').trim(),
+        color: (r[3] || '').replace(/^"|"$/g, '').replace(/[()?�）]/g, '').trim(),
+        reason: (r[4] || '').replace(/^"|"$/g, '').trim(),
+        action: (r[5] || '').replace(/^"|"$/g, '').trim()
+      }));
+    console.log(`[WarningDB] ${warningLights.length}件の警告�?を読み込みました`);
+  } catch(e) {
+    console.warn('[WarningDB] 警告�?�??タ読み込み失�?:', e.message);
+  }
+}
+
+// 簡易CSVパ�?サー?�ダブルクォート対応�?
+function parseCSV(text) {
+  const rows = []; let row = []; let cell = ''; let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuote) {
+      if (c === '"' && text[i+1] === '"') { cell += '"'; i++; }
+      else if (c === '"') { inQuote = false; }
+      else { cell += c; }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n' || (c === '\r' && text[i+1] === '\n')) {
+        row.push(cell); cell = ''; rows.push(row); row = [];
+        if (c === '\r') i++;
+      } else { cell += c; }
+    }
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ユー�?��リ�?��
+// ══════════════════════════════════════════════════════════════
+function go(id) {
+  try {
+    const target = document.getElementById(id);
+    if (!target) {
+      throw new Error(`画面要�?が見つかりません: ${id}`);
+    }
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    target.classList.add('active');
+    window.scrollTo(0, 0);
+    renderSteppers(id);
+  } catch (err) {
+    showToast(`画面遷移エラー (${id}): ` + err.message);
+    console.error(err);
+  }
+}
+
+function toggleAccordion(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const isOpening = el.style.display === 'none';
+  el.style.display = isOpening ? 'block' : 'none';
+  
+  // 親のカードに active クラスをトグルして矢印を回転させ�?
+  const parent = el.closest('.accordion');
+  if (parent) {
+    if (isOpening) {
+      parent.classList.add('active');
+      
+      // アコー�?��オンUI有効時、同じコン�?��?�グループ）�?下�?アコー�?��オンをいっきに展開する
+      if (useAccordionUI()) {
+        const groupContainer = parent.parentElement;
+        // 共通問診??ntake...?�、NVH??ntakeNvh?�、また�?深掘り問診??eepdiveForm?��?場�?
+        if (groupContainer && (groupContainer.id.startsWith('intake') || groupContainer.id === 'intakeNvh' || groupContainer.id === 'deepdiveForm')) {
+          const bodies = groupContainer.querySelectorAll('.accordion-body');
+          bodies.forEach(body => {
+            if (body.style.display === 'none') {
+              body.style.display = 'block';
+              const p = body.closest('.accordion');
+              if (p) p.classList.add('active');
+            }
+          });
+        }
+      }
+    } else {
+      parent.classList.remove('active');
+    }
+  }
+}
+
+function showToast(msg, type='error') {
+  const t = document.getElementById('toastEl');
+  t.textContent = msg; t.className = `toast toast-${type}`; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 4500);
+}
+
+function showLoading(txt='AIが�?析中...') {
+  document.getElementById('loadingText').textContent = txt;
+  document.getElementById('loadingOverlay').classList.add('active');
+}
+function hideLoading() { document.getElementById('loadingOverlay').classList.remove('active'); }
+
+function esc(s) { if(!s)return''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function fillExample(el) { document.getElementById('complaintInput').value = el.textContent; }
+
+function hasWarningDisplay() {
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  if (symptoms.includes('メーターに警告やメ�?��ージが�?�?')) return true;
+
+  const warningAns = intakeAnswers['i_warning_light'] || [];
+  if (!warningAns.length) return false;
+  // 肯定的な選択肢が選ばれて�?���?
+  return warningAns.some(v => v.includes('点灯して�?��') || v.includes('点灯して�?��') || v.includes('点�?') || v.includes('同時につ�?���?��'));
+}
+
+function hasMeterDisplay() {
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  if (symptoms.includes('メーターに警告やメ�?��ージが�?�?')) return true;
+
+  const meterAns = intakeAnswers['i_meter_message'] || [];
+  if (!meterAns.length) return false;
+  // 「表示されたことはな�?��を除外して「表示された」が含まれる�?
+  return meterAns.some(v => v.includes('表示され�?') && !v.includes('表示されたことはな�?'));
+}
+
+// ス�?��パ�?描画
+function getSteps() {
+  const showMeterScreen = (hasMeterDisplay() && meterMessages.length > 0) || (hasWarningDisplay() && warningLights.length > 0);
+  const steps = [
+    { id:'s_complaint', label:'ご用命入�?', n:'1' },
+    { id:'s_intake',    label:'共通問診',  n:'2' },
+  ];
+  let n = 3;
+  if (showMeterScreen) {
+    steps.push({ id:'s_meter', label:'表示特�?', n: String(n++) });
+  }
+  steps.push({ id:'s_deepdive', label:'深掘り問診', n: String(n++) });
+  steps.push({ id:'s_summary',  label:'サマリー', n: String(n++) });
+  
+  // �?��モード�?とき（デモ1・2・3?��?み「診断」「整備」を追�?
+  const isDemoMoc = isDemoMode;
+  if (isDemoMoc) {
+    steps.push({ id:'s_diagnosis', label:'車両診断', n: String(n++) });
+    steps.push({ id:'s_service',   label:'整備完�?', n: String(n++) });
+  }
+  
+  return steps;
+}
+
+function renderSteppers(current) {
+  try {
+    const steps = getSteps();
+    const idx = steps.findIndex(s => s.id === current);
+    const html = steps.map((s, i) => {
+      const cls = i < idx ? 'step done' : i === idx ? 'step active' : 'step';
+      const dot = i < idx ? '�?' : s.n;
+      const line = i < steps.length - 1
+        ? `<div class="step-line${i < idx ? ' done' : ''}"></div>` : '';
+      return `<div class="${cls}"><div class="step-dot">${dot}</div><div class="step-label">${s.label}</div></div>${line}`;
+    }).join('');
+    document.querySelectorAll('[id^="stepper"]').forEach(el => el.innerHTML = html);
+  } catch (err) {
+    showToast('ス�?��パ�?描画エラー: ' + err.message);
+    console.error(err);
+  }
+}
+
+// グローバルエラー監視（デバッグ用??
+window.onerror = function(message, source, lineno, colno, error) {
+  const errText = `JSエラー: ${message}\n場所: ${source}:${lineno}:${colno}`;
+  const toastEl = document.getElementById('toastEl');
+  if (toastEl) {
+    toastEl.textContent = errText;
+    toastEl.className = 'toast toast-error';
+    toastEl.style.display = 'block';
+    setTimeout(() => { toastEl.style.display = 'none'; }, 8000);
+  } else {
+    alert(errText);
+  }
+  return false;
+};
+
+window.onunhandledrejection = function(event) {
+  const errText = `非同期エラー: ${event.reason}`;
+  const toastEl = document.getElementById('toastEl');
+  if (toastEl) {
+    toastEl.textContent = errText;
+    toastEl.className = 'toast toast-error';
+    toastEl.style.display = 'block';
+    setTimeout(() => { toastEl.style.display = 'none'; }, 8000);
+  } else {
+    alert(errText);
+  }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  Screen 1: 初期�?
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const sk = localStorage.getItem('monshin_api_key');
+  if (sk) document.getElementById('apiKeyInput').value = sk;
+  const sm = localStorage.getItem('monshin_model');
+  if (sm) {
+    let fallbackModel = sm;
+    if (sm === 'gemini-2.0-flash') fallbackModel = 'gemini-2.5-flash';
+    if (sm === 'gemini-1.5-flash' || sm === 'gemini-1.5-flash-latest') fallbackModel = 'gemini-1.5-flash-002';
+    document.getElementById('modelSelect').value = fallbackModel;
+  }
+});
+
+async function initApp() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showToast('APIキーを�?力してください'); return; }
+  apiKey = key;
+  selectedModel = document.getElementById('modelSelect').value;
+  if (document.getElementById('saveKey').checked) {
+    localStorage.setItem('monshin_api_key', key);
+    localStorage.setItem('monshin_model', selectedModel);
+  }
+  // メーター表示・警告�?マスターを非同期で読み込み開�?
+  if (meterMessages.length === 0) {
+    loadMeterMessages();
+  }
+  if (warningLights.length === 0) {
+    loadWarningLights();
+  }
+  go('s_complaint');
+}
+
+function startDemoMode() {
+  isDemoMode = true;
+  apiKey = 'demo-key';
+  selectedModel = 'gemini-2.5-flash';
+  
+  // 1. ご用命入力（�?期値??
+  document.getElementById('complaintInput').value = 'メーターに警告文が�?た。今�?消えて�?��が不安なので見てほしい�?';
+  
+  // 2. 共通問診の初期回答を設�?
+  intakeAnswers = {
+    'i_onset': '1ヶ月以�?',
+    'i_frequency': '稀に?��?現しにくい??',
+    'i_weather': ['雨'],
+    'i_trigger': '対向車とすれ違っ�?',
+    'i_location_place': ['一般道（街乗り・郊外�?'],
+    'i_traffic': ['渋滞して�?���?��ス�?ーズに流れて�?��?�と�?'],
+    'i_road': ['荒れた道?��?�利道や未舗�?��など�?��続する振動�?衝撃??'],
+    'i_symptom_type': ['メーターに警告やメ�?��ージが�?�?'],
+    'i_speed': ['普通�?速さで走って�?��とき�?30�?60km/h??'],
+    'i_engine_temp': ['エンジンが十�?��温まって�?��とき（しばらく走った後�?'],
+    'i_operation': ['スピ�?ドを一定に保って走って�?��と�?'],
+    'i_occurrence': '一度�?け発生し�?',
+    'i_warning_light': ['点灯して�?��が今�?消えて�?��'],
+    'i_meter_message': ['�?�??�メ�?��ージ?�が表示され�?'],
+    'i_trend': 'わからな�?',
+    'i_other_remarks': '対向車とすれ違ったとき泥を�?ねられて�?��転席の前あたりにかかった直後、警告文が�?�?'
+  };
+  intakeOtherTexts = {};
+  
+  // �?��用のマスターロー�?
+  if (meterMessages.length === 0) loadMeterMessages();
+  if (warningLights.length === 0) loadWarningLights();
+  
+  go('s_complaint');
+  showToast('�?��モード（回答固定）で起動しました', 'info');
+}
+
+function startDemoMode2() {
+  isDemoMode2 = true;
+  isDemoMode = true;
+  apiKey = 'demo-key';
+  selectedModel = 'gemini-2.5-flash';
+  
+  // 1. ご用命入力（�?期値??
+  document.getElementById('complaintInput').value = 'メーターに警告文が�?た。今�?消えて�?��が不安なので見てほしい�?';
+  
+  // 2. 共通問診の初期回答を設�?
+  intakeAnswers = {
+    'i_onset': '1ヶ月以�?',
+    'i_frequency': '稀に?��?現しにくい??',
+    'i_weather': ['雨'],
+    'i_trigger': '対向車とすれ違っ�?',
+    'i_location_place': ['一般道（街乗り・郊外�?'],
+    'i_traffic': ['渋滞して�?���?��ス�?ーズに流れて�?��?�と�?'],
+    'i_road': ['荒れた道?��?�利道や未舗�?��など�?��続する振動�?衝撃??'],
+    'i_symptom_type': ['メーターに警告やメ�?��ージが�?�?'],
+    'i_speed': ['普通�?速さで走って�?��とき�?30�?60km/h??'],
+    'i_engine_temp': ['エンジンが十�?��温まって�?��とき（しばらく走った後�?'],
+    'i_operation': ['スピ�?ドを一定に保って走って�?��と�?'],
+    'i_occurrence': '一度�?け発生し�?',
+    'i_warning_light': ['点灯して�?��が今�?消えて�?��'],
+    'i_meter_message': ['�?�??�メ�?��ージ?�が表示され�?'],
+    'i_trend': 'わからな�?',
+    'i_other_remarks': '対向車とすれ違ったとき泥を�?ねられて�?��転席の前あたりにかかった直後、警告文が�?�?'
+  };
+  intakeOtherTexts = {};
+  
+  // �?��用のマスターロー�?
+  if (meterMessages.length === 0) loadMeterMessages();
+  if (warningLights.length === 0) loadWarningLights();
+  
+  // ご用命画面のアコー�?��オン化�?�?��?�常に通常表示??
+  
+  go('s_complaint');
+  showToast('�?��モー�?2?�各画面�?��コー�?��オンUI?�で起動しました', 'info');
+}
+
+function startDemoMode3() {
+  isDemoMode3 = true;
+  isDemoMode = true;
+  apiKey = 'demo-key';
+  selectedModel = 'gemini-2.5-flash';
+  
+  // 1. ご用命入力（�?期値??
+  document.getElementById('complaintInput').value = 'メーターに警告文が�?た。今�?消えて�?��が�?たり消えたりする�?';
+  
+  // 2. 共通問診の初期回答を設�?
+  intakeAnswers = {
+    'i_onset': '1ヶ月以�?',
+    'i_frequency': '時�?',
+    'i_weather': ['天気�?関係な�?/わからな�?'],
+    'i_trigger': '',
+    'i_location_place': ['一般道（街乗り・郊外�?'],
+    'i_traffic': ['渋滞して�?���?��ス�?ーズに流れて�?��?�と�?'],
+    'i_road': ['荒れた道?��?�利道や未舗�?��など�?��続する振動�?衝撃??'],
+    'i_symptom_type': ['メーターに警告やメ�?��ージが�?�?'],
+    'i_speed': ['普通�?速さで走って�?��とき�?30�?60km/h??'],
+    'i_engine_temp': ['エンジンが十�?��温まって�?��とき（しばらく走った後�?'],
+    'i_operation': ['スピ�?ドを一定に保って走って�?��と�?'],
+    'i_occurrence': '数回発生し�?',
+    'i_warning_light': ['点灯して�?��が今�?消えて�?��'],
+    'i_meter_message': ['�?�??�メ�?��ージ?�が表示され�?'],
+    'i_trend': 'わからな�?',
+    'i_other_remarks': ''
+  };
+  intakeOtherTexts = {};
+  
+  // 警告�?・メ�?��ージの初期選�?
+  intakeAnswers['i_warning_selected'] = ['クリアランスソナ�?OFF表示灯'];
+  intakeAnswers['i_meter_selected'] = ['運転支援シス�?��機�?停止'];
+  
+  // �?��用のマスターロー�?
+  if (meterMessages.length === 0) loadMeterMessages();
+  if (warningLights.length === 0) loadWarningLights();
+  
+  go('s_complaint');
+  showToast('�?��モー�?3?�悪路振動�?警告�?出入り）で起動しました', 'info');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Screen 2 �? 3: 共通問診へ遷移
+// ══════════════════════════════════════════════════════════════
+function goIntake() {
+  complaint = document.getElementById('complaintInput').value.trim();
+  if (!complaint) { showToast('お客様�?ご用命�?��を�?力してください'); return; }
+  renderIntake();
+  go('s_intake');
+}
+
+// ── 共通問診フォー�?描画 ──
+function renderIntake() {
+  renderQGroup('intakeBasic', INTAKE_BASIC, 'intake');
+  renderQGroup('intakeCondition', INTAKE_CONDITION, 'intake');
+  renderQGroup('intakeDetail', INTAKE_DETAIL.filter(q => !q.showIf), 'intake');
+  renderQGroup('intakeOther', INTAKE_OTHER, 'intake');
+  // NVH・エアコンの条件付き質問�?表示更新
+  updateNvhQuestions();
+  updateAcQuestions();
+}
+
+function updateNvhQuestions() {
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  const hasNvh = Array.isArray(symptoms) 
+    ? symptoms.some(s => s.includes('異音') || s.includes('振�?'))
+    : (symptoms.includes('異音') || symptoms.includes('振�?'));
+  
+  const nvhContainer = document.getElementById('intakeNvh');
+  const nvhSection = document.getElementById('intakeNvhSection');
+  if (!nvhContainer || !nvhSection) return;
+  
+  if (hasNvh) {
+    const nvhQs = INTAKE_DETAIL.filter(q => q.showIf === 'nvh');
+    nvhContainer.innerHTML = nvhQs.map(q => renderQ(q, 'intake')).join('');
+    nvhSection.style.display = 'block';
+  } else {
+    nvhContainer.innerHTML = '';
+    nvhSection.style.display = 'none';
+    // NVH質問�?回答をクリア
+    INTAKE_DETAIL.filter(q => q.showIf === 'nvh').forEach(q => delete intakeAnswers[q.id]);
+  }
+}
+
+function updateAcQuestions() {
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  const hasAc = Array.isArray(symptoms)
+    ? symptoms.some(s => s.includes('エアコン'))
+    : symptoms.includes('エアコン');
+
+  const acContainer = document.getElementById('intakeAc');
+  const acSection = document.getElementById('intakeAcSection');
+  if (!acContainer || !acSection) return;
+
+  if (hasAc) {
+    const acQs = INTAKE_DETAIL.filter(q => q.showIf === 'ac');
+    acContainer.innerHTML = acQs.map(q => renderQ(q, 'intake')).join('');
+    acSection.style.display = 'block';
+    updateAcDetailVisibility();
+  } else {
+    acContainer.innerHTML = '';
+    acSection.style.display = 'none';
+    // エアコン質問�?回答をクリア
+    INTAKE_DETAIL.filter(q => q.showIf === 'ac').forEach(q => delete intakeAnswers[q.id]);
+  }
+}
+
+function updateAcDetailVisibility() {
+  const acTypeVal = intakeAnswers['i_ac_type'] || [];
+  const showOther = Array.isArray(acTypeVal)
+    ? acTypeVal.includes('そ�?他（�?体的に教えてください??')
+    : acTypeVal === 'そ�?他（�?体的に教えてください??';
+
+  const detailEl = document.getElementById('qc_i_ac_detail');
+  if (detailEl) {
+    if (showOther) {
+      detailEl.style.display = 'block';
+    } else {
+      detailEl.style.display = 'none';
+      delete intakeAnswers['i_ac_detail'];
+      const ta = document.getElementById('ta_i_ac_detail');
+      if (ta) ta.value = '';
+    }
+  }
+}
+
+function renderQGroup(containerId, questions, prefix) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = questions.map(q => renderQ(q, prefix)).join('');
+}
+
+function renderQ(q, prefix) {
+  const reqMark = q.required ? '<span class="req">*�???</span>' : '';
+  const hintHtml = q.hint ? `<div class="q-hint">${esc(q.hint)}</div>` : '';
+  const reasonHtml = q.reason ? `<div class="q-reason">?�� ${esc(q.reason)}</div>` : '';
+  let inputHtml = '';
+  let otherTaHtml = '';
+
+  const answers = prefix === 'intake' ? intakeAnswers : deepdiveAnswers;
+  const currentAns = answers[q.id];
+
+  const hasOther = (q.type === 'radio' || q.type === 'checkbox') && q.options && q.options.some(o => o.includes('そ�?�?'));
+  if (hasOther) {
+    const val = (prefix === 'intake' ? intakeOtherTexts[q.id] : deepOtherTexts[q.id]) || '';
+    const hasOtherSelected = Array.isArray(currentAns)
+      ? currentAns.some(v => v.includes('そ�?�?'))
+      : (typeof currentAns === 'string' && currentAns.includes('そ�?�?'));
+    const displayStyle = hasOtherSelected ? 'block' : 'none';
+    otherTaHtml = `
+      <div id="other_ta_container_${prefix}_${q.id}" style="display:${displayStyle}; margin-top:0.5rem;">
+        <textarea id="other_ta_${prefix}_${q.id}" placeholder="具体的な�?��を記�?してください" oninput="${prefix}SetOtherText('${q.id}',this.value)">${esc(val)}</textarea>
+      </div>`;
+  }
+
+  if (q.type === 'radio') {
+    inputHtml = '<div class="option-grid">' + q.options.map((o,i) => {
+      const uid = `${prefix}_${q.id}_${i}`;
+      const checked = currentAns === o ? 'checked' : '';
+      return `<div class="opt-item"><input type="radio" name="${prefix}_${q.id}" id="${uid}" value="${esc(o)}" ${checked} onchange="${prefix}Set('${q.id}',this.value)"><label for="${uid}">${esc(o)}</label></div>`;
+    }).join('') + '</div>' + otherTaHtml;
+  } else if (q.type === 'checkbox') {
+    inputHtml = '<div class="option-grid">' + q.options.map((o,i) => {
+      const uid = `${prefix}_${q.id}_${i}`;
+      const isChecked = Array.isArray(currentAns) ? currentAns.includes(o) : (currentAns === o);
+      const checked = isChecked ? 'checked' : '';
+      return `<div class="opt-item"><input type="checkbox" name="${prefix}_${q.id}" id="${uid}" value="${esc(o)}" ${checked} onchange="${prefix}SetCb('${q.id}')"><label for="${uid}">${esc(o)}</label></div>`;
+    }).join('') + '</div>' + otherTaHtml;
+  } else {
+    const val = currentAns || '';
+    inputHtml = `<textarea id="ta_${prefix}_${q.id}" placeholder="自由記述" oninput="${prefix}Set('${q.id}',this.value)">${esc(val)}</textarea>`;
+  }
+
+  if (useAccordionUI()) {
+    const contentId = `ac_content_${prefix}_${q.id}`;
+    let ansSummaryText = '';
+    const formatted = getFormattedAnswer(q.id, prefix);
+    if (formatted) {
+      ansSummaryText = ` <span style="font-size:0.75rem; color:var(--accent); font-weight:normal; margin-left:0.5rem;">[回�?: ${esc(formatted)}]</span>`;
+    }
+    return `
+      <div class="q-card accordion" id="qc_${prefix}_${q.id}">
+        <div class="accordion-header" onclick="toggleAccordion('${contentId}')">
+          <div class="q-label" style="margin-bottom:0;">${esc(q.label)}${reqMark}${ansSummaryText}</div>
+          <span class="accordion-icon">▼</span>
+        </div>
+        <div class="accordion-body" id="${contentId}" style="display:none;">
+          ${hintHtml}
+          ${inputHtml}
+          ${reasonHtml}
+        </div>
+      </div>`;
+  } else {
+    return `<div class="q-card" id="qc_${prefix}_${q.id}">${`<div class="q-label">${esc(q.label)}${reqMark}</div>`}${hintHtml}${inputHtml}${reasonHtml}</div>`;
+  }
+}
+
+function intakeSetOtherText(id, val) {
+  intakeOtherTexts[id] = val;
+}
+function deepSetOtherText(id, val) {
+  deepOtherTexts[id] = val;
+}
+
+function getFormattedAnswer(id, prefix) {
+  const answers = prefix === 'intake' ? intakeAnswers : deepdiveAnswers;
+  const otherTexts = prefix === 'intake' ? intakeOtherTexts : deepOtherTexts;
+  let a = answers[id];
+
+  if (a === undefined || a === '') return '';
+
+  if (Array.isArray(a)) {
+    return a.map(v => {
+      if (v.includes('そ�?�?') && otherTexts[id]) {
+        return `${v}?�記述�?��: ${otherTexts[id]}?�`;
+      }
+      return v;
+    }).join(', ');
+  } else {
+    if (a.includes('そ�?�?') && otherTexts[id]) {
+      return `${a}?�記述�?��: ${otherTexts[id]}?�`;
+    }
+    return a;
+  }
+}
+
+function updateOtherTaVisibility(id, prefix) {
+  const container = document.getElementById(`other_ta_container_${prefix}_${id}`);
+  if (!container) return;
+
+  const answers = prefix === 'intake' ? intakeAnswers : deepdiveAnswers;
+  const val = answers[id] || [];
+  const hasOtherSelected = Array.isArray(val)
+    ? val.some(v => v.includes('そ�?�?'))
+    : (typeof val === 'string' && val.includes('そ�?�?'));
+
+  if (hasOtherSelected) {
+    container.style.display = 'block';
+  } else {
+    container.style.display = 'none';
+    if (prefix === 'intake') {
+      delete intakeOtherTexts[id];
+    } else {
+      delete deepOtherTexts[id];
+    }
+    const ta = document.getElementById(`other_ta_${prefix}_${id}`);
+    if (ta) ta.value = '';
+  }
+}
+
+// 共通問診の回答セ�?��
+function intakeSet(id, val) { 
+  intakeAnswers[id] = val; 
+  if (id === 'i_symptom_type') {
+    updateNvhQuestions();
+    updateAcQuestions();
+  }
+  updateOtherTaVisibility(id, 'intake');
+}
+function intakeSetCb(id) {
+  const chk = document.querySelectorAll(`input[name="intake_${id}"]:checked`);
+  intakeAnswers[id] = Array.from(chk).map(c=>c.value);
+  if (!intakeAnswers[id].length) delete intakeAnswers[id];
+  if (id === 'i_symptom_type') {
+    updateNvhQuestions();
+    updateAcQuestions();
+  }
+  if (id === 'i_ac_type') {
+    updateAcDetailVisibility();
+  }
+  updateOtherTaVisibility(id, 'intake');
+}
+
+// ── 共通問診 �? 次の画面への遷移ロジ�?�� ──
+function goNextFromIntake() {
+  // �??�チェ�?��
+  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL.filter(q => !q.showIf), ...INTAKE_OTHER];
+  // NVH・エアコン表示中ならそれぞれもチェ�?��対象に
+  const symptoms = intakeAnswers['i_symptom_type'] || [];
+  const hasNvh = Array.isArray(symptoms)
+    ? symptoms.some(s => s.includes('異音') || s.includes('振�?'))
+    : false;
+  if (hasNvh) {
+    allIntake.push(...INTAKE_DETAIL.filter(q => q.showIf === 'nvh'));
+  }
+  const hasAc = Array.isArray(symptoms)
+    ? symptoms.some(s => s.includes('エアコン'))
+    : false;
+  if (hasAc) {
+    allIntake.push(...INTAKE_DETAIL.filter(q => q.showIf === 'ac'));
+  }
+  const missing = allIntake.filter(q => q.required && !intakeAnswers[q.id]);
+  if (missing.length) {
+    showToast('�??��??��を�?力してください: ' + missing[0].label);
+    document.getElementById('qc_' + missing[0].id)?.scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
+
+  const showMeterScreen = (hasMeterDisplay() && meterMessages.length > 0) || (hasWarningDisplay() && warningLights.length > 0);
+
+  if (showMeterScreen) {
+    const warningSec = document.getElementById('warningLightSection');
+    const meterSec = document.getElementById('meterMessageSection');
+    
+    if (hasWarningDisplay() && warningLights.length > 0) {
+      renderWarningSelection();
+      warningSec.style.display = 'block';
+    } else {
+      warningSec.style.display = 'none';
+    }
+
+    if (hasMeterDisplay() && meterMessages.length > 0) {
+      renderMeterSelection();
+      meterSec.style.display = 'block';
+    } else {
+      meterSec.style.display = 'none';
+    }
+
+    go('s_meter');
+  } else {
+    requestDeepDive();
+  }
+}
+
+// ── 警告�?特定画面の描画 ──
+function renderWarningSelection() {
+  const container = document.getElementById('warningGrid');
+  if (!container) return;
+
+  let html = '';
+  warningLights.forEach((w, idx) => {
+    const uid = `warn_${idx}`;
+    const label = w.name;
+    const isRed = w.color.includes('赤');
+    const borderClass = isRed ? 'warn-red' : 'warn-yellow';
+    const imgUrl = `./warning-icons/${w.image}`;
+    
+    const isChecked = Array.isArray(intakeAnswers['i_warning_selected'])
+      ? intakeAnswers['i_warning_selected'].includes(label)
+      : (intakeAnswers['i_warning_selected'] === label);
+    const checked = isChecked ? 'checked' : '';
+    
+    html += `<div class="warning-item"><input type="checkbox" name="warning_select" id="${uid}" value="${esc(label)}" ${checked} onchange="updateWarningSelection()"><label for="${uid}" class="${borderClass}"><img src="${imgUrl}" alt="${esc(label)}" onerror="this.style.display='none'"><span>${esc(label)}</span></label></div>`;
+  });
+
+  container.innerHTML = html;
+
+  // 警告�?セクション自体�?アコー�?��オン化�?�?��?�常に開いた状態で通常表示??
+}
+
+function updateWarningSelection() {
+  const chk = document.querySelectorAll('input[name="warning_select"]:checked');
+  intakeAnswers['i_warning_selected'] = Array.from(chk).map(c => c.value);
+  if (!intakeAnswers['i_warning_selected'].length) delete intakeAnswers['i_warning_selected'];
+  
+  autoExpandMeterCategories();
+}
+
+function autoExpandMeterCategories() {
+  console.log("[autoExpandMeterCategories] Triggered. useAccordionUI:", useAccordionUI());
+  if (!useAccordionUI()) return;
+  
+  // チェ�?��されて�?��警告�?を取得し、改行コードを除去してトリミング
+  const checkedWarns = Array.from(document.querySelectorAll('input[name="warning_select"]:checked'))
+    .map(c => c.value.replace(/\r?\n/g, '').trim());
+  console.log("[autoExpandMeterCategories] Checked warnings (cleaned):", checkedWarns);
+  
+  // 警告�?とメ�?��ージカ�?��リの関係�?�?��ング (Excel�??タに基づ�?)
+  const WARN_TO_CAT_MAP = {
+    "ブレーキ警告�??�警告ブザー??": ["ブレーキシス�?��"],
+    "高水温警告�??�警告ブザー??": ["エンジン"],
+    "�?��警告�??�警告ブザー??": ["補機バ�?��リー", "シフトシス�?��", "エンジン"],
+    "油圧警告�??�警告ブザー??": ["エンジン"],
+    "ハイブリ�?��シス�?��過�?警告�??�警告ブザー??": ["ハイブリ�?��シス�?��"],
+    "エンジン警告�??�警告ブザー??": ["エンジン", "ハイブリ�?��シス�?��"],
+    "SRSエアバッグ?��?リ�?��ショナ�?警告�??�警告ブザー??": [],
+    "ポップア�??フ�?ド警告�??�警告ブザー??": [],
+    "ABS??��レーキアシスト警告�??�警告ブザー??": ["ブレーキシス�?��"],
+    "ペダル誤操作警告�??�警告ブザー?�※ブザー鳴�?": ["シフト操作アドバイス", "運転操作アドバイス", "ブレーキ操作アドバイス"],
+    "ペダル誤操作警告�??�警告ブザー?�※ブザー鳴らな�?": ["シフト操作アドバイス", "運転操作アドバイス", "ブレーキ操作アドバイス"],
+    "パワース�?��リング警告�??�警告ブザー??": ["ハイブリ�?��シス�?��"],
+    "�?��残量警告�?": [],
+    "運転席・助手席シート�?ルト非着用警告�??�警告ブザー??": [],
+    "リヤ席シート�?ルト非着用警告�??�警告ブザー??": [],
+    "PCS警告�??�警告ブザー??": ["運転支援シス�?�� (Toyota Safety Sense�?)", "運転支援シス�?��", "運転支援シス�?�� (センサー�?)"],
+    "LTA表示灯?�警告ブザー??": ["運転支援シス�?�� (Toyota Safety Sense�?)", "運転支援シス�?��", "運転支援シス�?�� (センサー�?)"],
+    "LDA表示灯?�警告ブザー??": ["運転支援シス�?�� (Toyota Safety Sense�?)", "運転支援シス�?��", "運転支援シス�?�� (センサー�?)"],
+    "PDA表示灯?�警告ブザー??": ["運転支援シス�?�� (Toyota Safety Sense�?)", "運転支援シス�?��", "運転支援シス�?�� (センサー�?)"],
+    "クルーズコントロール表示灯?�警告ブザー??": ["運転支援シス�?�� (Toyota Safety Sense�?)", "運転支援シス�?��", "運転支援シス�?�� (クルーズコントロール)"],
+    "レーダークルーズコントロール表示灯?�警告ブザー??": ["運転支援シス�?�� (Toyota Safety Sense�?)", "運転支援シス�?��", "運転支援シス�?�� (クルーズコントロール)"],
+    "運転支援�??�表示灯": ["運転支援シス�?�� (Toyota Safety Sense�?)", "運転支援シス�?��", "運転支援シス�?�� (センサー�?)"],
+    "クリアランスソナ�?OFF表示灯?�警告ブザー??": ["運転支援シス�?�� (Toyota Safety Sense�?)", "運転支援シス�?�� (センサー�?)"],
+    "スリ�??表示灯": [],
+    "パ�?キングブレーキ表示灯": [],
+    "ブレーキホ�?ルド作動表示灯?�警告ブザー??": []
+  };
+
+  // 展開すべきメ�?��ージカ�?��リのセ�?��を抽出
+  const categoriesToExpand = new Set();
+  checkedWarns.forEach(warnName => {
+    const cats = WARN_TO_CAT_MAP[warnName] || [];
+    console.log(`[autoExpandMeterCategories] Warning "${warnName}" maps to cats:`, cats);
+    cats.forEach(cat => categoriesToExpand.add(cat));
+  });
+  console.log("[autoExpandMeterCategories] Expanded categories set:", Array.from(categoriesToExpand));
+  
+  // メ�?��ージカ�?��リのアコー�?��オンを取�?
+  const catCards = document.querySelectorAll('#meterCategoryList .glass-card.accordion');
+  console.log("[autoExpandMeterCategories] Found accordion cards:", catCards.length);
+  
+  catCards.forEach(card => {
+    const cardCategory = card.dataset.category || "";
+    const body = card.querySelector('.accordion-body');
+    const shouldExpand = categoriesToExpand.has(cardCategory);
+    console.log(`[autoExpandMeterCategories] Card Category: "${cardCategory}", shouldExpand: ${shouldExpand}, hasBody: ${!!body}`);
+    if (!body) return;
+    
+    if (shouldExpand) {
+      body.style.display = 'block';
+      card.classList.add('active');
+    } else {
+      body.style.display = 'none';
+      card.classList.remove('active');
+    }
+  });
+}
+
+// ── メーター表示特定画面の描画 ──
+function renderMeterSelection() {
+  const container = document.getElementById('meterCategoryList');
+  
+  // カ�?��リ別にグループ化
+  const categories = {};
+  meterMessages.forEach(m => {
+    const cat = m.category.split(' / ')[0].trim(); // 主カ�?��リを取�?
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(m);
+  });
+
+  let html = '';
+  Object.entries(categories).forEach(([cat, msgs], catIdx) => {
+    const contentId = `meter_cat_body_${catIdx}`;
+    if (useAccordionUI()) {
+      html += `<div class="glass-card accordion" style="margin-bottom:.7rem" data-category="${esc(cat)}">`;
+      html += `<div class="accordion-header" onclick="toggleAccordion('${contentId}')">`;
+      html += `<div class="sec-header" style="margin-bottom:0; border-bottom:none; padding-bottom:0;"><div class="num" style="font-size:.6rem">?��</div><h3>${esc(cat)}</h3><span class="count">${msgs.length}件</span></div>`;
+      html += `<span class="accordion-icon">▼</span></div>`;
+      html += `<div class="accordion-body" id="${contentId}" style="display:none;">`;
+      html += '<div class="option-grid">';
+      msgs.forEach((m, idx) => {
+        const uid = `meter_${catIdx}_${idx}`;
+        const label = m.message;
+        const isChecked = Array.isArray(intakeAnswers['i_meter_selected'])
+          ? intakeAnswers['i_meter_selected'].includes(label)
+          : (intakeAnswers['i_meter_selected'] === label);
+        const checked = isChecked ? 'checked' : '';
+        html += `<div class="opt-item"><input type="checkbox" name="meter_select" id="${uid}" value="${esc(label)}" ${checked} onchange="updateMeterSelection()"><label for="${uid}" style="font-size:.78rem;line-height:1.4">${esc(label)}</label></div>`;
+      });
+      html += '</div></div></div>';
+    } else {
+      html += `<div class="glass-card" style="margin-bottom:.7rem" data-category="${esc(cat)}">`;
+      html += `<div class="sec-header" style="margin-bottom:.5rem"><div class="num" style="font-size:.6rem">?��</div><h3>${esc(cat)}</h3><span class="count">${msgs.length}件</span></div>`;
+      html += '<div class="option-grid">';
+      msgs.forEach((m, idx) => {
+        const uid = `meter_${catIdx}_${idx}`;
+        const label = m.message;
+        const isChecked = Array.isArray(intakeAnswers['i_meter_selected'])
+          ? intakeAnswers['i_meter_selected'].includes(label)
+          : (intakeAnswers['i_meter_selected'] === label);
+        const checked = isChecked ? 'checked' : '';
+        html += `<div class="opt-item"><input type="checkbox" name="meter_select" id="${uid}" value="${esc(label)}" ${checked} onchange="updateMeterSelection()"><label for="${uid}" style="font-size:.78rem;line-height:1.4">${esc(label)}</label></div>`;
+      });
+      html += '</div></div>';
+    }
+  });
+
+  container.innerHTML = html;
+
+  // メーターメ�?��ージセクション自体�?アコー�?��オン化�?�?��?�常に開いた状態で通常表示??
+  autoExpandMeterCategories();
+}
+
+function updateMeterSelection() {
+  const chk = document.querySelectorAll('input[name="meter_select"]:checked');
+  intakeAnswers['i_meter_selected'] = Array.from(chk).map(c => c.value);
+  if (!intakeAnswers['i_meter_selected'].length) delete intakeAnswers['i_meter_selected'];
+}
+
+function goDeepDiveFromMeter() {
+  updateMeterSelection();
+  updateWarningSelection();
+  requestDeepDive();
+}
+
+function goBackFromDeepdive() {
+  const showMeterScreen = (hasMeterDisplay() && meterMessages.length > 0) || (hasWarningDisplay() && warningLights.length > 0);
+  if (showMeterScreen) {
+    go('s_meter');
+  } else {
+    go('s_intake');
+  }
+}
+
+// 深掘り問診の回答セ�?��
+function deepSet(id, val) { 
+  deepdiveAnswers[id] = val; 
+  updateOtherTaVisibility(id, 'deep');
+}
+function deepSetCb(id) {
+  const chk = document.querySelectorAll(`input[name="deep_${id}"]:checked`);
+  deepdiveAnswers[id] = Array.from(chk).map(c=>c.value);
+  if (!deepdiveAnswers[id].length) delete deepdiveAnswers[id];
+  updateOtherTaVisibility(id, 'deep');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Screen 3 �? 4: AI深掘り質問�?生�?
+// ══════════════════════════════════════════════════════════════
+async function requestDeepDive() {
+  showLoading('AIが�?通問診の結果を�?析し、深掘り質問を生�?して�?���?...');
+
+  if (isDemoMode) {
+    if (isDemoMode3) {
+      setTimeout(() => {
+        deepdiveResult = {
+          "suspected_faults": [
+            {
+              "name": "運転支援シス�?��??CS、LDA、LTA、レーダークルーズ、PKSBなど?��?センサーまた�?カメラの一時的な機�?停止",
+              "confidence": "�?",
+              "reason": "お客様が特定したメ�?��ージ?�運転支援シス�?��機�?停止?�と、クリアランスソナ�?OFF表示灯点灯から、�?��の運転支援シス�?��に関連するセンサー�?��メラに一時的な異常が発生して�?��可能性が高い。特に荒れた道での発生や、�?たり消えたりする状況から、センサーへの泥付着�?��振動によるコネクタの一時的な接触不良が�?��られる�?"
+            },
+            {
+              "name": "クリアランスソナ�?シス�?��の異常",
+              "confidence": "�?",
+              "reason": "お客様が特定した「クリアランスソナ�?OFF表示灯」�?点灯から、クリアランスソナ�?シス�?��自体に異常が発生して�?��可能性が高い。荒れた道での発生や、�?たり消えたりする状況から、センサーの汚れ、断線、また�?配線�?一時的な接触不良が�?��られる�?"
+            },
+            {
+              "name": "配線やコネクタの接触不良?�特に悪路での振動によるも�???",
+              "confidence": "中",
+              "reason": "荒れた道?��?�利道や�?��ボコ道など?�を走行し、「�?たり消えたりする」と�?���?��から、振動によるセンサーやECU関連の接続、コネクタ部�?��一時的な接触不良で、シス�?��が一時的に警告を点灯させて�?��可能性がある�?"
+            }
+          ],
+          "followup_questions": [
+            {
+              "id": "fu_0",
+              "question": "メーターに警告文�?��告�?が表示された�?は、直近で�?���?��したか？（�?体的な日付や時間帯、昼夜など、覚えて�?���?��で構いませんので詳しく教えてください??",
+              "type": "text",
+              "options": [],
+              "reason": "車載コンピュータに記録されて�?��フリーズフレー�?�??タ�?��イ�?スタンプと照合し、不�?合発生時の車両の状態を正確に把握するため�?"
+            },
+            {
+              "id": "fu_1",
+              "question": "警告文�?��告�?が消えた�?は、どのような状況でしたか？（例：洗車後�?��が止んだ後、しばらく走行した後、エンジンを�?起動した後、�?然に消えたなど??",
+              "type": "checkbox",
+              "options": [
+                "洗車�?",
+                "雨が止んだ�?",
+                "し�?らく走行した�?",
+                "エンジンを�?起動した�?",
+                "自然に消え�?",
+                "そ�?他（�?体的に記�???"
+              ],
+              "reason": "一時的なセンサーの汚れ?�水濡れ、泥など?�が走行や時間経過でリセ�?��された�?か、また�?シス�?��の一時的なリセ�?��によるも�?かを判別するため�?"
+            },
+            {
+              "id": "fu_2",
+              "question": "警告文�?��告�?が表示された際、車両の周囲?�特にフロントバンパ�?、リアバンパ�?、フロントガラス上部など?�に泥�?��、水、落ち葉などの付着物はありませんでしたか�?",
+              "type": "radio",
+              "options": [
+                "あっ�?",
+                "なかっ�?",
+                "覚えて�?���?"
+              ],
+              "reason": "環�?��因?�センサーの汚れ�??蔽?�による一時的な機�?停止であるかを物�?��に確認するため�?"
+            },
+            {
+              "id": "fu_3",
+              "question": "「荒れた道（�?�利道や未舗�?��など�?��続する振動�?衝撃?�」とありますが、�?体的にどのような路面状況でしたか？（例：未舗�??砂利道、工事中の�?��ボコ道、�?ンホ�?ルが多い道など??",
+              "type": "text",
+              "options": [],
+              "reason": "路面からの連続的な振動がどの程度センサー�??線に影響を与えたか、振動�?具体的な規模を把握するため�?"
+            },
+            {
+              "id": "fu_4",
+              "question": "警告文�?��告�?が表示された際、何か特定�?操作（例：ハンドルを�?る、ブレーキを踏�?、アクセルを踏�?など?�を行って�?��したか�?",
+              "type": "radio",
+              "options": [
+                "特定�?操作をして�?��",
+                "何も操作して�?��かった（定速走行中??",
+                "覚えて�?���?"
+              ],
+              "reason": "特定�?操作時?�車体�?傾きや荷重移動など?�にのみ発生する、センサーの検知�?��のズレ�??線�?引っ張り�?可能性を検証するため�?"
+            },
+            {
+              "id": "fu_5",
+              "question": "警告文�?��告�?が表示されて�?��間�?��転支援シス�?��??CS、レーダークルーズコントロールなど?��?実際に機�?して�?��せんでしたか�?",
+              "type": "radio",
+              "options": [
+                "機�?して�?��かっ�?",
+                "機�?して�?��",
+                "気にして�?���??でわからな�?"
+              ],
+              "reason": "メ�?��ージの表示が単なる誤表示?�警告�?み?�であるか、シス�?��が実際に遮断されたかを�?り�?けるため�?"
+            }
+          ],
+          "interviewer_tips": [
+            "お客様が「荒れた道」と回答された場所につ�?��、可能であれば具体的な地名（○○�?道、○○付近など?�を伺�?��実走�?��ト�?参�?��してください�?",
+            "警告文�?��告�?が表示された際の状況につ�?��、お客様が思い出すきっかけとなるよ�?���?体的なシーン?�例：カーブを曲がって�?��時、加速時、減速時など?�を質問しながら傾聴してみてください�?",
+            "お客様が特定したメ�?��ージ�?��告�?は確定情報として扱�?��その�?��を改めて質問する�?ではなく、発生時の状況や消えた状況に焦点を当てて深掘りしてください�?"
+          ]
+        };
+
+        deepdiveAnswers = {
+          'fu_0': '3日前�?14時�??',
+          'fu_1': ['そ�?他（�?体的に記�???'],
+          'fu_2': 'なかっ�?',
+          'fu_3': '未舗�?��',
+          'fu_4': '覚えて�?���?',
+          'fu_5': '気にして�?���??でわからな�?'
+        };
+        deepOtherTexts = {
+          'fu_1': '未舗�?��を抜けてし�?らくしたら消え�?'
+        };
+
+        renderDeepDive();
+        go('s_deepdive');
+        hideLoading();
+      }, 1500);
+      return;
+    }
+
+    // �?��用の固定回答�?PI呼び出しをせず1.5秒ロー�?��ング後に描画??
+    setTimeout(() => {
+      deepdiveResult = {
+        "suspected_faults": [
+          {
+            "name": "運転支援シス�?��??CS、LDA、LTA、レーダークルーズ、PKSBなど?��?センサー?�カメラ、レーダー, ソナ�??��?一時的な機�?停止また�?異常",
+            "confidence": "�?",
+            "reason": "お客様�?ご用命、�?通問診の回答、特定されたメーター表示メ�?��ージ?�運転支援シス�?��機�?停止?�、およ�?特定された警告�??�クリアランスソナ�?OFF表示灯?�から�?��転支援シス�?��関連のセンサーに一時的な異常が発生した可能性が高いと推定されます。特に、対向車とすれ違った際に泥を�?ねられた直後に発生したと�?���??�が、センサーへの付着物による一時的な機�?停止を示�?��て�?��す�?"
+          },
+          {
+            "name": "クリアランスソナ�?の異常また�?一時的な機�?停止",
+            "confidence": "�?",
+            "reason": "クリアランスソナ�?OFF表示灯が点灯したと特定されており、これ�?クリアランスソナ�?シス�?��自体に異常があるか、一時的に機�?が停止したことを直接示して�?��す。泥の付着が原�?である可能性も�?��られます�?"
+          },
+          {
+            "name": "配線やコネクタの接触不良?�特にセンサー関連??",
+            "confidence": "中",
+            "reason": "荒れた道�?��はねの状況で発生して�?��ことから、外部からの衝撃�?���?��振動などにより、センサー関連の配線やコネクタに一時的な接触不良が発生した可能性も�?��られます。た�?し、今回は泥はねと�?��明確なきっかけがあるため、付着物の可能性が高いと見て�?��す�?"
+          }
+        ],
+        "followup_questions": [
+          {
+            "id": "fu_0",
+            "question": "警告文が表示された�?は、�?体的に�?���?��日付や時間帯、昼夜など?�でしたか？できる�?け詳しく教えて�?���?けますでしょ�?���?",
+            "type": "text",
+            "options": [],
+            "reason": "日付や発生時間帯?�昼夜）を確認し、車両ログ?�ダイアグ�??タ?��?記録時間�?��メラ等�?作動条件と照合�?特定するため�?"
+          },
+          {
+            "id": "fu_1",
+            "question": "対向車とすれ違った際に泥を�?ねられたとのことですが、泥はねは運転席のどのあたりにかかりましたか？（例：フロントガラス、バンパ�?、�?�?��ライト、フェンダーなど??",
+            "type": "radio",
+            "options": [
+              "フロントガラス?�運転席側??",
+              "フロントバンパ�??�運転席側??",
+              "ヘッドライト（運転席側??",
+              "フロントフェンダー?�運転席側??",
+              "ドアミラー?�運転席側??",
+              "そ�?他（�?体的に記�???"
+            ],
+            "reason": "泥の付着部位を特定し、どのセンサー?�フロントカメラ、コーナ�?ソナ�?等）に一時的な障害が起きたかを絞り込むため�?"
+          },
+          {
+            "id": "fu_2",
+            "question": "警告文が表示された後、どのような状況で警告文�?��リアランスソナ�?OFF表示灯が消えましたか？（例：洗車後�?��が止んだ後、しばらく走行した後、エンジンを�?始動した後、�?然に消えたなど??",
+            "type": "radio",
+            "options": [
+              "洗車した�?",
+              "雨が止んだ�?",
+              "泥が乾�?���?",
+              "し�?らく走行した�?",
+              "エンジンを停止し、�?始動した�?",
+              "自然に消えた（特に何もして�?���?�?",
+              "そ�?他（�?体的に記�???"
+            ],
+            "reason": "警告文が消去されたきっかけ?�洗�?��時間�?経過、シス�?��の再起動など?�から、一時的な汚れによる誤作動かを判別するため�?"
+          },
+          {
+            "id": "fu_3",
+            "question": "「荒れた道（�?�利道や未舗�?��など�?��続する振動�?衝撃?�」で発生したとのことですが、その荒れた道はどの程度の期間、走行して�?��したか？また、泥はねはそ�?荒れた道で発生しましたか�?",
+            "type": "text",
+            "options": [],
+            "reason": "荒れた道における振動�?影響度�?��泥はねのタイミングとの前後関係を確認し�??線不良�?��付着の状況を詳しく探るため�?"
+          },
+          {
+            "id": "fu_4",
+            "question": "警告文が表示された�?は一度�?けとのことですが、その後、同様�?状�?��雨天、対向車とのすれ違い、荒れた道走行など?�で再度警告文が表示されたことはありませんか�?",
+            "type": "radio",
+            "options": [
+              "は�?��一度もありません",
+              "�?��え、一度�?けですが似たよ�?��状況で発生しました",
+              "�?��え、�?��回発生して�?��す�?"
+            ],
+            "reason": "再現頻度を確認し、一時的な一過性の要因?�汚れなど?�によるも�?か、�?現性のある恒�?��なシス�?��不�?合（ハード故障）かを判断するため�?"
+          }
+        ],
+        "interviewer_tips": [
+          "お客様が泥はねの状況を詳しく思い出せるように、当時の天候�?��路状況、対向車�?種類（大型車か普通車かなど?�を具体的に尋�?てみてください�?",
+          "警告文が消えた状況につ�?��、お客様が「�?然に消えた」と回答された場合でも、その間に何か車�?操作（エンジン停止・再始動、走行距離など?�があったかを確認してみてください�?",
+          "お客様が不安に感じて�?��点に�?��添�?��丁寧な言葉遣�?���?��けてください�?"
+        ]
+      };
+      
+      deepdiveAnswers = {
+        'fu_0': '?�週間前の日曜日�?��４時�?',
+        'fu_1': 'フロントバンパ�??�運転席側??',
+        'fu_2': 'し�?らく走行した�?',
+        'fu_3': '?�５�?ほど走行。泥はねは荒れた道�?',
+        'fu_4': 'は�?��一度もありません'
+      };
+      
+      renderDeepDive();
+      go('s_deepdive');
+      hideLoading();
+    }, 1500);
+    return;
+  }
+
+  // 回答テキスト化??VH条件付き質問も含める??
+  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL, ...INTAKE_OTHER];
+  const answersText = allIntake.map(q => {
+    let a = getFormattedAnswer(q.id, 'intake');
+    if (a === '') a = '?�未回答�?';
+    return `- ${q.label}: ${a}`;
+  }).join('\n');
+
+  // メーター表示メ�?��ージの有無を確認し、AIプロンプトに一覧を含める
+  const hasMeterMsg = hasMeterDisplay();
+
+  let meterSection = '';
+  
+  // お客様が選択した�?体的なメ�?��ージがある�?��?
+  const selectedMsgs = intakeAnswers['i_meter_selected'] || [];
+  const meterFreeText = intakeAnswers['i_meter_freetext'] || '';
+  
+  if (selectedMsgs.length > 0 || meterFreeText) {
+    meterSection += '\n\n【お客様が特定したメーター表示メ�?��ージ�?';
+    if (selectedMsgs.length > 0) {
+      // 選択されたメ�?��ージの補足�??�を付�?
+      selectedMsgs.forEach(msg => {
+        const found = meterMessages.find(m => m.message === msg);
+        if (found) {
+          meterSection += `\n- [${found.category}] ${found.message}?�補足: ${found.note}?�`;
+        } else {
+          meterSection += `\n- ${msg}`;
+        }
+      });
+    }
+    if (meterFreeText) {
+      meterSection += `\n- ?��?由記述??${meterFreeText}`;
+    }
+    meterSection += '\nこれら�?メ�?��ージに関連する不�?合を推定し、深掘り質問に反映してください�?';
+  } else if (hasMeterMsg && meterMessages.length > 0) {
+    // メ�?��ージがあると言ったが特定できて�?���??��?
+    const msgList = meterMessages.map(m => `- [${m.category}] ${m.message}`).join('\n');
+    meterSection += `\n\n【メーター表示メ�?��ージ一覧?��?スター�??タ?��?
+お客様がメーターにメ�?��ージが表示されたと回答して�?��すが、�?体的なメ�?��ージの特定ができて�?��せん�?
+以下�?一覧から関連しそ�?��も�?を選択式�?heckbox?��?質問として深掘り質問に含めてください?�最大10件程度に絞り込み?��?
+「上記にな�?��のメ�?��ージ」と�?��選択肢も最後に追�?してください�?
+
+${msgList}`;
+  }
+
+  // 選択された警告�?�??�
+  const selectedWarnings = intakeAnswers['i_warning_selected'] || [];
+  let warningSection = '';
+  if (selectedWarnings.length > 0) {
+    warningSection += '\n\n【お客様が特定した点灯警告�??�ランプ�?マ�?ク?��?';
+    selectedWarnings.forEach(name => {
+      const found = warningLights.find(w => w.name === name);
+      if (found) {
+        warningSection += `\n- ${found.name}?�色: ${found.color}, カ�?��リ: ${found.category}?�`;
+        warningSection += `  - 発生原�?の�?: ${found.reason}`;
+        warningSection += `  - 対処方法�?�?: ${found.action}`;
+      } else {
+        warningSection += `\n- ${name}`;
+      }
+    });
+    warningSection += '\nこれら�?警告�?に関連する不�?合を優先的に疑い、深掘り質問や不�?合推定に反映してください�?';
+  }
+
+  const prompt = `あなた�?自動�? of �?��診断のエキスパ�?トです�?
+お客様�?ご用命と共通問診の結果を�?析し、不�?合�?再現条件を正確に特定するため�?「深掘り質問」を生�?してください�?
+ 
+【お客様�?ご用命�?
+${complaint}
+ 
+【�?通問診の回答�?
+${answersText}${meterSection}${warningSection}
+
+【あなた�?タスク�?
+1. 推定される不�?合を�?��する
+2. 共通問診の回答で「曖昧・不十�?���?��」を特定す�?
+3. 再現条件を正確に特定するため�?具体的な深掘り質問を生�?する
+
+【深掘り質問�?生�?ルール�?
+- 共通問診の回答�?容に基づ�?��、�?現条件を絞り込むために「さらに具体的に聞くべきこと」を質問にする
+- �?:「坂道」と回�? �? 「上り坂ですか?�下り坂ですか?��?
+- �?:「低速」と回�? �? 「�?体的に何km/h付近ですか?��?
+- すでに選択�?特定された具体的なメーターメ�?��ージ�?��告�??�【お客様が特定したメーター表示メ�?��ージ】【お客様が特定した点灯警告�?】）がある場合、そのメ�?��ージ�?���??ーク自体を重�?て質問（「どんな�?�?でしたか？」「どんなマ�?クでしたか？」など?�することは【絶対に禁止】です。すでに確定して�?���??�として扱�?��それ以外�?発生条件?�発生時の車速や操作、天気など?�を深掘りしてください�?
+- メーターにメ�?��ージ�?��告�?が表示されたと回答されて�?��場合、車載コンピュータ??oBやECU等）に記�?されたフリーズフレー�?�??タ�?��イ�?スタンプと照合するため、「それが�?��?��?体的な日付や何時何�?�?��昼夜など?�発生したか、できる�?け詳しい日時」を確認する質問を�?��含めてください�?
+- メーター警告�?�?���?��ージが「今�?消えて�?��」「点灯して�?��が今�?消えて�?��」など�?��去に発生して現在は消去されて�?��と回答されて�?��場合�?、一時的なセンサーの汚れ�?���?��因?�雨・泥など?��?可能性があります。「洗車や雨あがり、走行など、どのようなきっかけ�?��況でランプや表示が消えたか?�また�?自然に消えたか?�」を詳しく確認する質問を�?��含めてください�?
+- メーターにメ�?��ージが表示されたと回答したが、�?体的に特定できて�?���??�合（選択がな�??�合）�?み、�?スター�??タの一覧から関連メ�?��ージの選択質問を生�?してください�?
+- エアコンの不�?合（エアコンが効かな�??不�?合がある?�と回答されて�?��場合、以下�?ルールを厳守してください??
+  - 「エアコンが効かな�?��と�?���??��?けで、�?房?�クーラー?��?不�?合だと勝手に決めつけて質問を生�?することは【絶対に禁止】です。�?��「�?房?�クーラー?�と暖房?�ヒーター?��?どちら�?機�?で問題が発生して�?��のか、また�?両方か」を確認�?明確にする質問を含めてください�?
+  - 風の状態につ�?��も、「風自体が全く�?な�?���?か、「風は出るが風量が弱�?���?か、「風量�?十�?�?が温度が�?たくな�?/温かくな�?���?かを明確に区別し、�?現可能な診断�??�として特定するため�?質問を含めてください�?
+- 不要な質問�?生�?しな�?��お客様�?�?�?��減�?
+- 最�?3問、最大10問程度
+- �?��問に「なぜこの質問が�?��か」�?�?��を付け�?
+
+【�?力JSON�?
+{
+  "suspected_faults": [
+    { "name": "不�?合名", "confidence": "�?/中/�?", "reason": "推定理由" }
+  ],
+  "followup_questions": [
+    {
+      "id": "fu_1",
+      "question": "質問文",
+      "type": "radio また�? checkbox また�? text",
+      "options": ["選択肢1", "選択肢2"],
+      "reason": "こ�?質問が再現条件の特定に�?��な�?��"
+    }
+  ],
+  "interviewer_tips": [
+    "問診�?��のアドバイス?�聞き方のコ�?��ど??"
+  ]
+}`;
+
+  try {
+    deepdiveResult = await callGeminiJson(prompt);
+    if (!deepdiveResult.suspected_faults) deepdiveResult.suspected_faults = [];
+    if (!deepdiveResult.followup_questions) deepdiveResult.followup_questions = [];
+    // ID重�??不一致・記号等によるバグを防ぐため、IDを強制�?��連番に書き換える
+    deepdiveResult.followup_questions.forEach((q, idx) => {
+      q.id = `fu_${idx}`;
+    });
+    if (!deepdiveResult.interviewer_tips) deepdiveResult.interviewer_tips = [];
+    deepdiveAnswers = {};
+    renderDeepDive();
+    go('s_deepdive');
+  } catch(e) {
+    showToast('�?��エラー: ' + e.message);
+    console.error(e);
+  } finally { hideLoading(); }
+}
+
+function renderDeepDive() {
+  // ── �?��結果カー�? ──
+  const ac = document.getElementById('analysisCard');
+  
+  const faults = deepdiveResult.suspected_faults.map((f, fIdx) => {
+    const bc = f.confidence==='�?'?'badge-high':f.confidence==='中'?'badge-mid':'badge-low';
+    const ic = f.confidence==='�?'?'?��':f.confidence==='中'?'?��':'?��';
+    const contentId = `fault_reason_${fIdx}`;
+    
+    if (useAccordionUI()) {
+      return `
+        <div class="fault-item accordion" style="border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.5rem; padding:0.5rem;">
+          <div class="accordion-header" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleAccordion('${contentId}')">
+            <div class="fault-name" style="margin-bottom:0; font-size:0.85rem;">${ic} ${esc(f.name)} <span class="badge ${bc}">${f.confidence}</span></div>
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-body" id="${contentId}" style="display:none; margin-top:0.4rem; font-size:0.8rem; color:var(--text-dim); border-top:1px solid rgba(255,255,255,0.04); padding-top:0.4rem;">
+            ${esc(f.reason)}
+          </div>
+        </div>`;
+    } else {
+      return `<div class="fault-item"><div class="fault-icon">${ic}</div><div class="fault-info"><div class="fault-name">${esc(f.name)} <span class="badge ${bc}">${f.confidence}</span></div><div class="fault-reason">${esc(f.reason)}</div></div></div>`;
+    }
+  }).join('');
+
+  const tips = (deepdiveResult.interviewer_tips||[]).map(t =>
+    `<div class="tip-card">?�� ${esc(t)}</div>`
+  ).join('');
+
+  let tipsHtml = '';
+  if (tips) {
+    tipsHtml = `<div style="margin-top:.7rem"><div style="font-size:.8rem;font-weight:600;color:var(--primary);margin-bottom:.35rem">?�� 問診�?��のアドバイス</div>${tips}</div>`;
+  }
+
+  ac.className = 'glass-card';
+  ac.innerHTML = `
+    <h3 style="font-size:.92rem;font-weight:600;color:var(--accent);margin-bottom:.6rem">?�? AI�?��結果</h3>
+    <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.5rem">お客様�?ご用命?��?${esc(complaint)}�?</div>
+    ${faults}
+    ${tipsHtml}
+  `;
+
+  // ── 深掘り質問フォー�? ──
+  const form = document.getElementById('deepdiveForm');
+  const qs = deepdiveResult.followup_questions;
+  if (qs.length === 0) {
+    form.innerHTML = '<div class="advice-card" style="text-align:center">共通問診の�??�で十�?です。追�?の質問�?ありません�?</div>';
+    return;
+  }
+
+  const secHdr = `<div class="sec-header"><div class="num">?��</div><h3>再現条件を特定するため�?質�?</h3><span class="count">${qs.length}�?</span></div>`;
+
+  const qCards = qs.map((q, idx) => {
+    // AI生�?の質問をrenderQ互換に変換
+    const qDef = {
+      id: q.id || `fu_${idx}`,
+      label: q.question,
+      type: q.type || 'text',
+      options: q.options || [],
+      reason: q.reason,
+      required: false
+    };
+    return renderQ(qDef, 'deep');
+  }).join('');
+
+  form.innerHTML = secHdr + qCards;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Screen 5: サマリー生�?
+// ══════════════════════════════════════════════════════════════
+async function generateSummary() {
+  showLoading('再現条件を含むサマリーを生成して�?���?...');
+
+  if (isDemoMode) {
+    if (isDemoMode3) {
+      setTimeout(() => {
+        summaryText = `�? �?��の概�?
+走行中、メーターにクリアランスソナ�?OFF表示灯と警告文?�運転支援シス�?��関連?�が点灯。未舗�?��走行後に消�?する�?��が数回発生�?
+
+�? 再現手�??��重�?�?�?
+1. エンジン暖機後、一般道（未舗�?��?�を30�?60km/hで定速走行�?
+2. 荒れた路面?��?�利道や�?��ボコ道）を走行し、振動を与える�?
+3. メーター�??クリアランスソナ�?OFF表示灯と警告文の点灯有無を確認�?
+
+�? 推定される不�?合と根�?
+- クリアランスソナ�?シス�?��の異常
+  * 根�??�クリアランスソナ�?OFF表示灯点灯、荒れた道での発生、�?たり消えたりする�?���?
+- 運転支援シス�?��?�センサー・カメラ?��?一時的な機�?停止
+  * 根�??�運転支援シス�?��関連の警告文表示、荒れた道での発生、�?たり消えたりする�?���?
+- 配線やコネクタの接触不良
+  * 根�??�荒れた道での発生、振動による�?��の出没�?
+
+�? きっかけ・原因の推�?
+- 荒れた路面走行時の振�?
+- センサーまた�?配線への一時的な�?荷
+
+�? 再発防止アドバイス
+- 未舗�?���?��れた道�?走行時は�?��度を控えめにしてください�?
+- �?��が�?�繁に発生する�?�合�?、早め�?点検をお勧めします�?
+
+�? エンジニアへの申し送り
+- 診断機を接続し、DTC?�ダイアグコード）およ�?RoB?�車両挙動�??タ?�を読み取って問診�?��との整合性を確認してください�?
+- �?��再現時�?�?振点検（�?線揺すり等）を試みてください�?
+- 運転支援シス�?��関連のセンサー・配線�?コネクタを中�?��点検してください�?
+- ADAS関連部品�?脱着・交換が予想される�?�合、エーミング?��?�正?�作業が�?��です。`;
+
+        renderSummary(summaryText);
+        go('s_summary');
+        hideLoading();
+      }, 1500);
+      return;
+    }
+
+    // �?��用の固定サマリー??PI呼び出しをせず1.5秒ロー�?��ング後に描画??
+    setTimeout(() => {
+      summaryText = `�? �?��の概�?
+雨天時、対向車から�?泥はね直後�?��転席側フロントバンパ�?付近�?クリアランスソナ�?が一時的に機�?停止し、メーターに警告文とクリアランスソナ�?OFF表示灯が点灯。しばらく走行後に消�?�?
+
+�? 再現手�??��重�?�?�?
+1. 雨天時、一般道（荒れた道）を30�?60km/hで定速走行�?
+2. 対向車とすれ違い�?��転席側フロントバンパ�?に泥が付着する状況を再現�?
+3. メーターの警告文とクリアランスソナ�?OFF表示灯の点灯有無を確認�?
+
+�? 推定される不�?合と根�?
+- クリアランスソナ�?の一時的な機�?停止?�クリアランスソナ�?OFF表示灯点灯、泥はね直後�?発生�?
+- 運転支援シス�?��?�センサー?��?一時的な異常?�メーターに警告文表示、泥はね直後�?発生�?
+
+�? きっかけ・原因の推�?
+- 運転席側フロントバンパ�?付近�?クリアランスソナ�?への泥付着�?
+- 雨天、荒れた道での走行�?
+
+�? 再発防止アドバイス
+- センサー部に泥�?��れが付着した場合�?�?��やかに�?��してください�?
+- 特に雨天時や荒れた道を走行した後�?、センサー部の確認をお勧めします�?
+
+�? エンジニアへの申し送り
+- 診断機を接続し、DTC?�ダイアグコード）およ�?RoB?�車両挙動�??タ?�を読み取って問診�?��との整合性を確認してください�?
+- 運転席側フロントバンパ�?のクリアランスソナ�?周辺の泥汚れ�?��傷を確認�?
+- センサーおよび関連配線�?コネクタ接触不良の有無を『加振点検（�?線揺すり等）』で確認�?
+- クリアランスソナ�?の部品脱着・交換が予想される�?�合、『エーミング?��?�正?�作業が�?��』。`;
+
+      renderSummary(summaryText);
+      go('s_summary');
+      hideLoading();
+    }, 1500);
+    return;
+  }
+
+  const allIntake = [...INTAKE_BASIC, ...INTAKE_CONDITION, ...INTAKE_DETAIL, ...INTAKE_OTHER];
+  const intakeText = allIntake.map(q => {
+    let a = getFormattedAnswer(q.id, 'intake');
+    if (a===undefined||a==='') a='?�未回答�?';
+    return `- ${q.label}: ${a}`;
+  }).join('\n');
+
+  const fuQs = deepdiveResult?.followup_questions || [];
+  const deepText = fuQs.map(q => {
+    const id = q.id;
+    let a = getFormattedAnswer(id, 'deep');
+    if (a===undefined||a==='') a='?�未回答�?';
+    return `- ${q.question}: ${a}`;
+  }).join('\n');
+
+  const faultsText = (deepdiveResult?.suspected_faults||[]).map(f =>
+    `- ${f.name}??${f.confidence}??: ${f.reason}`
+  ).join('\n');
+
+  const selectedWarnings = intakeAnswers['i_warning_selected'] || [];
+  let warningSummaryText = '';
+  if (selectedWarnings.length > 0) {
+    warningSummaryText += '\n【点灯して�?��警告�?�?';
+    selectedWarnings.forEach(name => {
+      const found = warningLights.find(w => w.name === name);
+      if (found) {
+        warningSummaryText += `\n- ${found.name}?�色: ${found.color}, カ�?��リ: ${found.category}?�`;
+      } else {
+        warningSummaryText += `\n- ${name}`;
+      }
+    });
+  }
+
+  const prompt = `あなた�?自動車�?�?��診断のエキスパ�?トです�?
+問診�??タをもとに、エンジニアが「この通りに�?��ば不�?合を再現できる」レベルの具体的なサマリーを作�?してください�?
+※重�?���?長な�?�?表現は避け、各�?��は�?��書きを基本として、要点のみを極めてシンプルかつ端�?��記述してください?�地の�??最小限にすること?�。�?ークダウン記法�?使わず、�?レーン�?��ストで出力してください�?
+
+【お客様�?ご用命?�原�?���?
+${complaint}
+
+【�?通問診の回答�?
+${intakeText}${warningSummaryText}
+
+【深掘り問診の回答�?
+${deepText || '?�なし�?'}
+
+【AI推定不�?合�?
+${faultsText || '?�なし�?'}
+
+以下�?セクションに�?��て記載してください:
+
+�? �?��の概�?
+お客様�?ご用命と問診を統合した症状 of 概�?�?1�?2行で簡潔�?端�?��??
+
+�? 再現手�??��重�?�?�?
+再現するための具体的な手�??��、簡潔な番号付き�?��書き（手�??極力短く要点のみ、ス�?��プ数も最小限?�で記載してください�?
+�?:
+1. エンジン始動後�?5�?���?
+2. 40km/hで定速走�?
+3. 右カーブで据え�?り操�?
+4. 右前方からの「ゴリゴリ音」発生有無を確�?
+速度、回転数、操作量、温度、路面等�?条件は具体的な数値で端�?��記載すること�?
+
+�? 推定される不�?合と根�?
+可能性の高い�?��、不�?合名と問診から得られた根�?を�?��書きで端�?��記載（詳細な長�?��明�?不�?�?
+
+�? きっかけ・原因の推�?
+推定されるきっかけ�?��的要因?�天候、汚れ等）を�?��書きで簡潔に記載�?1�?2�?��程度??
+
+�? 再発防止アドバイス
+お客様へお伝えする�?��を、簡潔に�?��書きで??2�?��程度??
+
+�? エンジニアへの申し送り
+入庫時に確認すべき�?イントを�?��書きで??3�?��程度?�。以下�?整備�?ロのアドバイスを�?��含めてください??
+- �?��に「振動」が関係して�?��、また�?再現が不安定な場合：『加振点検（�?線揺すり等）』による再現の試みを�?��
+- ADAS関連?�カメラ、レーダー、ソナ�?等）�?部品脱着・交換が予想される�?�合：『エーミング?��?�正?�作業が�?��』である旨を�?�?
+- メーターに警告表示?�警告�?�?��告メ�?��ージ?�が出た�?�合：『DTC?�ダイアグコード）およ�?RoB?�車両挙動�??タ?��?確認』により問診�?��と整合する履歴�?��生パラメータを点検するよ�?��示する
+- エアコン不�?合がある場合：�?房/暖房の区別�?���?/温度の状態（風が�?な�?/弱�?/冷えな�?��）を問診から正確に判別して記載。思い込みによる冷房決めつけ�?厳禁。`;
+
+  try {
+    const data = await callGemini(prompt);
+    const candidate = data.candidates?.[0];
+    const text = candidate?.content?.parts?.filter(p=>!p.thought).map(p=>p.text||'').join('') || '';
+    const reason = candidate?.finishReason || 'UNKNOWN';
+    console.log('[SummaryGen] finishReason:', reason);
+    console.log('[SummaryGen] raw output:', text);
+    if (reason !== 'STOP' && reason !== 'MAX_TOKENS') {
+      showToast(`サマリー生�?が中断されました。理由: ${reason}`, 'info');
+    }
+    summaryText = text;
+    renderSummary(text);
+    go('s_summary');
+  } catch(e) {
+    showToast('サマリー生�?エラー: ' + e.message);
+    console.error(e);
+  } finally { hideLoading(); }
+}
+
+function renderSummary(text) {
+  try {
+    const container = document.getElementById('summaryContent');
+    const icons = {
+      '�?��の概�?':'?��','再現手�??':'?��','推定される不�?合と根�?':'?��',
+      'きっかけ':'?��','再発防止':'?��??','エンジニア':'??'
+    };
+    const sections = ('\n' + text).split(/\n�?\s*/).filter(s=>s.trim());
+
+    let html = `<div class="summary-section"><h4>?�� お客様�?ご用命?�原�?�?</h4>
+      <div style="padding:.5rem .7rem;border-radius:8px;background:var(--surface2);font-size:.85rem;line-height:1.6">�?${esc(complaint)}�?</div></div>`;
+
+    sections.forEach((sec, idx) => {
+      try {
+        const lines = sec.trim().split('\n');
+        if (lines.length === 0) return;
+        const title = lines[0].trim();
+        if (!title) return;
+        const body = lines.slice(1).join('\n').trim();
+        const icon = Object.entries(icons).find(([k])=>title.includes(k))?.[1]||'?��';
+        
+        let imgHtml = '';
+        if (isDemoMode) {
+          if (isDemoMode3) {
+            // �?��3用の画�?
+            if (title.includes('�?��の概�?')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="�?��の概�?"></div>';
+            } else if (title.includes('推定される不�?合と根�?')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_03.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="推定される不�?合と根�?"></div>';
+            } else if (title.includes('再発防止アドバイス')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_05.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="再発防止アドバイス"></div>';
+            } else if (title.includes('エンジニアへの申し送り')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_06.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り"></div>';
+            }
+          } else {
+            // �?��1・2用の画�?
+            if (title.includes('�?��の概�?')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="�?��の概�?"></div>';
+            } else if (title.includes('推定される不�?合と根�?')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/03.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="推定される不�?合と根�?"></div>';
+            } else if (title.includes('再発防止アドバイス')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/05.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="再発防止アドバイス"></div>';
+            } else if (title.includes('エンジニアへの申し送り')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/06.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り"></div>';
+              imgHtml += '<div style="margin-top:0.8rem;"><img src="./summary_image/06_02.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="エンジニアへの申し送り2"></div>';
+            }
+          }
+        }
+        
+        html += `<div class="summary-section"><h4>${icon} ${esc(title)}</h4><div class="summary-content">${esc(body)}${imgHtml}</div></div>`;
+      } catch(secErr) {
+        console.error('[renderSummary] Section parse error:', secErr, sec);
+      }
+    });
+
+    container.innerHTML = html;
+    updateSummaryNavButtons();
+  } catch(globalErr) {
+    console.error('[renderSummary] Global render error:', globalErr);
+    showToast('サマリー表示の構築中にエラーが発生しました');
+  }
+}
+
+function copySummary() {
+  navigator.clipboard.writeText(`【お客様�?ご用命】\n${complaint}\n\n${summaryText}`).then(
+    ()=>showToast('コピ�?しました','info'), ()=>showToast('コピ�?失�?'));
+}
+
+// ── 診断・整備連携機�???oC?�関連のロジ�?�� ──
+function updateSummaryNavButtons() {
+  const isDemoMoc = isDemoMode;
+  const diagBtn = document.getElementById('summaryDiagBtn');
+  const resetBtn = document.getElementById('summaryResetBtn');
+  
+  if (diagBtn && resetBtn) {
+    if (isDemoMoc) {
+      diagBtn.style.display = 'inline-flex';
+      resetBtn.style.display = 'none'; // 診断・整備フローへ誘導するため、ここでは非表示
+    } else {
+      diagBtn.style.display = 'none';
+      resetBtn.style.display = 'inline-flex';
+    }
+  }
+}
+
+function goToDiagnosis() {
+  try {
+    // 初期状態にリセ�?��
+    isDiagRead = false;
+    isDemo3ReproRun = false;
+    
+    const diagInit = document.getElementById('diagInitialSection');
+    const diagLoad = document.getElementById('diagLoadingSection');
+    
+    const diagResultNormal = document.getElementById('diagResultNormal');
+    const diagResultDemo3 = document.getElementById('diagResultDemo3');
+    
+    const diagStep2 = document.getElementById('diagStep2Section');
+    const goToService = document.getElementById('goToServiceBtn');
+    
+    const diagReproCard = document.getElementById('diagReproCard');
+    const reproInit = document.getElementById('reproInitialSection');
+    const reproLoad = document.getElementById('reproLoadingSection');
+    const reproResult = document.getElementById('reproResultSection');
+    const diagReadCard = document.getElementById('diagReadCard');
+    
+    // 全体を非表示・初期�?
+    if (diagInit) diagInit.style.display = 'block';
+    if (diagLoad) diagLoad.style.display = 'none';
+    if (diagResultNormal) diagResultNormal.style.display = 'none';
+    if (diagResultDemo3) diagResultDemo3.style.display = 'none';
+    if (diagStep2) diagStep2.style.display = 'none';
+    if (goToService) goToService.disabled = true;
+    
+    if (isDemoMode3) {
+      // �?��3の場合：�?現�?��トを表示、診断機�?最初�?非表示
+      if (diagReproCard) diagReproCard.style.display = 'block';
+      if (reproInit) reproInit.style.display = 'block';
+      if (reproLoad) reproLoad.style.display = 'none';
+      if (reproResult) reproResult.style.display = 'none';
+      if (diagReadCard) diagReadCard.style.display = 'none';
+      
+      const diagCardNum = document.getElementById('diagCardNum');
+      const diagCardTitle = document.getElementById('diagCardTitle');
+      const conclusionCardNum = document.getElementById('conclusionCardNum');
+      const conclusionCardTitle = document.getElementById('conclusionCardTitle');
+      
+      if (diagCardNum) diagCardNum.textContent = '3';
+      if (diagCardTitle) diagCardTitle.textContent = '診断③?�診断機で�??タ裏取り（不�?合実績??��体加振�?��ト�?';
+      if (conclusionCardNum) conclusionCardNum.textContent = '4';
+      if (conclusionCardTitle) conclusionCardTitle.textContent = '診断④?�総合診断の結�?';
+    } else {
+      // �?��1・2の場合：�?現�?��ト�?非表示、診断機を表示
+      if (diagReproCard) diagReproCard.style.display = 'none';
+      if (diagReadCard) diagReadCard.style.display = 'block';
+      
+      const diagCardNum = document.getElementById('diagCardNum');
+      const diagCardTitle = document.getElementById('diagCardTitle');
+      const conclusionCardNum = document.getElementById('conclusionCardNum');
+      const conclusionCardTitle = document.getElementById('conclusionCardTitle');
+      
+      if (diagCardNum) diagCardNum.textContent = '2';
+      if (diagCardTitle) diagCardTitle.textContent = '診断機で�??タ裏取り（ダイアグ・挙動ログ??';
+      if (conclusionCardNum) conclusionCardNum.textContent = '3';
+      if (conclusionCardTitle) conclusionCardTitle.textContent = '診断②?�タイミング照合�?結�?';
+    }
+    
+    // �?��3画像�?出し�?�?
+    const demo3Imgs = document.querySelectorAll('.demo3-only-img');
+    demo3Imgs.forEach(el => {
+      el.style.display = isDemoMode3 ? 'block' : 'none';
+    });
+    
+    go('s_diagnosis');
+  } catch (err) {
+    showToast('goToDiagnosis実行エラー: ' + err.message);
+    console.error(err);
+  }
+}
+
+function startDemo3Repro() {
+  const reproInit = document.getElementById('reproInitialSection');
+  const reproLoad = document.getElementById('reproLoadingSection');
+  const reproResult = document.getElementById('reproResultSection');
+  const diagReadCard = document.getElementById('diagReadCard');
+  
+  if (reproInit) reproInit.style.display = 'none';
+  if (reproLoad) reproLoad.style.display = 'block';
+  
+  setTimeout(() => {
+    if (reproLoad) reproLoad.style.display = 'none';
+    if (reproResult) reproResult.style.display = 'block';
+    
+    isDemo3ReproRun = true;
+    
+    // 診断機裏取りカードを表示する
+    if (diagReadCard) {
+      diagReadCard.style.display = 'block';
+      diagReadCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 1500);
+}
+
+function startDiagnosisRead() {
+  const diagInit = document.getElementById('diagInitialSection');
+  const diagLoad = document.getElementById('diagLoadingSection');
+  
+  const diagResultNormal = document.getElementById('diagResultNormal');
+  const diagResultDemo3 = document.getElementById('diagResultDemo3');
+  
+  const diagStep2 = document.getElementById('diagStep2Section');
+  const diagStep2Text = document.getElementById('diagStep2Text');
+  const goToService = document.getElementById('goToServiceBtn');
+  
+  if (diagInit) diagInit.style.display = 'none';
+  if (diagLoad) diagLoad.style.display = 'block';
+  
+  // 問診日時を動的に反映
+  const onsetAns = getFormattedAnswer('i_onset', 'intake') || '2週間前の日曜日�?14時�??';
+  const onsetTimeText = (onsetAns.includes('不�?') || onsetAns === '') ? '2週間前の日曜日�?14時�??' : onsetAns;
+  document.querySelectorAll('.diag-intake-time').forEach(el => el.textContent = onsetTimeText);
+  
+  // RoB側は問診時刻と一致したタイ�?スタンプをダミ�?生�?
+  let robTimeText = "2週間前の日曜日 14:00";
+  if (onsetTimeText.includes('本日/昨日')) {
+    robTimeText = "本日 14:00";
+  } else if (onsetTimeText.includes('数日�?')) {
+    robTimeText = "3日�? 14:00";
+  } else if (onsetTimeText.includes('1週間以�?')) {
+    robTimeText = "5日�? 14:00";
+  } else if (onsetTimeText.includes('1ヶ月以�?') || onsetTimeText.includes('?�週間前')) {
+    robTimeText = "2週間前の日曜日 14:00";
+  }
+  document.querySelectorAll('.diag-rob-time').forEach(el => el.textContent = robTimeText);
+
+  setTimeout(() => {
+    if (diagLoad) diagLoad.style.display = 'none';
+    
+    if (isDemoMode3) {
+      if (diagResultNormal) diagResultNormal.style.display = 'none';
+      if (diagResultDemo3) diagResultDemo3.style.display = 'block';
+      if (diagStep2Text) {
+        diagStep2Text.innerHTML = 'DTC?�ダイアグコード）�?検�?には至らな�?��のの、車両挙動�??タ??oB?�にて通信遮蔽履歴が確認され、タイ�?スタンプが問診�?��と完�?に一致しました。さらに走行�?現およびセンサ単体加振�?��ト�?結果から�?<strong>連続的な振動によって引き起こされるセンサー�?��の一時的な接触不良?�瞬断?��?不�?合である</strong>と確定診断しました�?';
+        diagStep2Text.style.borderLeftColor = 'var(--accent)';
+      }
+    } else {
+      if (diagResultNormal) diagResultNormal.style.display = 'block';
+      if (diagResultDemo3) diagResultDemo3.style.display = 'none';
+      if (diagStep2Text) {
+        diagStep2Text.innerHTML = 'RoBに記録されて�?��「センサ通信異常/遮蔽」�?日時データが、問診で聞き出した「お客様が発生�?解消を体感したタイミング」と完�?に一致することを確認しました。これにより�?<strong>センサの物�?��破損ではなく、一時的な付着物?�泥はね?�が原因である</strong>と確定診断しました�?';
+        diagStep2Text.style.borderLeftColor = 'var(--accent)';
+      }
+    }
+    
+    if (diagStep2) diagStep2.style.display = 'block';
+    if (goToService) goToService.disabled = false;
+    isDiagRead = true;
+    
+    // スクロールして結果を見やすくする
+    if (isDemoMode3) {
+      diagResultDemo3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      diagResultNormal.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 1500);
+}
+
+function goToService() {
+  const isDemo3 = isDemoMode3;
+  const normalSvc = document.getElementById('serviceContentNormal');
+  const demo3Svc = document.getElementById('serviceContentDemo3');
+  if (normalSvc && demo3Svc) {
+    if (isDemo3) {
+      normalSvc.style.display = 'none';
+      demo3Svc.style.display = 'block';
+    } else {
+      normalSvc.style.display = 'block';
+      demo3Svc.style.display = 'none';
+    }
+  }
+  go('s_service');
+}
+
+function resetAll() {
+  complaint=''; intakeAnswers={}; deepdiveResult=null; deepdiveAnswers={}; summaryText='';
+  isDemoMode = false; // �?��モードをリセ�?��
+  isDemoMode2 = false; // �?��モー�?2をリセ�?��
+  isDemoMode3 = false; // �?��モー�?3をリセ�?��
+  isDiagRead = false; // 診断ス�??トをリセ�?��
+  isDemo3ReproRun = false; // �?��3走行�?現�?��ト実行フラグをリセ�?��
+  
+  document.getElementById('complaintInput').value='';
+  const meterFree = document.getElementById('meterFreeText');
+  if (meterFree) meterFree.value = '';
+  
+  // 診断・再現系の表示初期�?
+  const diagReproCard = document.getElementById('diagReproCard');
+  const reproInit = document.getElementById('reproInitialSection');
+  const reproLoad = document.getElementById('reproLoadingSection');
+  const reproResult = document.getElementById('reproResultSection');
+  const diagReadCard = document.getElementById('diagReadCard');
+  const diagInit = document.getElementById('diagInitialSection');
+  const diagLoad = document.getElementById('diagLoadingSection');
+  const diagResultNormal = document.getElementById('diagResultNormal');
+  const diagResultDemo3 = document.getElementById('diagResultDemo3');
+  const diagStep2 = document.getElementById('diagStep2Section');
+  const goToServiceBtn = document.getElementById('goToServiceBtn');
+  
+  if (diagReproCard) diagReproCard.style.display = 'none';
+  if (reproInit) reproInit.style.display = 'block';
+  if (reproLoad) reproLoad.style.display = 'none';
+  if (reproResult) reproResult.style.display = 'none';
+  if (diagReadCard) diagReadCard.style.display = 'block';
+  if (diagInit) diagInit.style.display = 'block';
+  if (diagLoad) diagLoad.style.display = 'none';
+  if (diagResultNormal) diagResultNormal.style.display = 'none';
+  if (diagResultDemo3) diagResultDemo3.style.display = 'none';
+  if (diagStep2) diagStep2.style.display = 'none';
+  if (goToServiceBtn) goToServiceBtn.disabled = true;
+  
+  // アコー�?��オン要�?の解除・初期�?
+  const card = document.getElementById('complaintCard');
+  if (card) {
+    card.classList.remove('accordion');
+    card.classList.remove('active');
+    document.getElementById('complaintHeaderWrap').style.display = 'none';
+    const cBody = document.getElementById('complaintBody');
+    cBody.className = '';
+    cBody.style.display = 'block';
+    document.getElementById('exampleLabel').style.display = 'block';
+    document.getElementById('exampleChips').style.display = 'flex';
+  }
+
+  // メーター特定画面のアコー�?��オン化も解除
+  const warningSec = document.getElementById('warningLightSection');
+  if (warningSec) {
+    warningSec.classList.remove('accordion');
+    const hdr = warningSec.querySelector('.accordion-header');
+    if (hdr) {
+      hdr.className = 'sec-header';
+      hdr.onclick = null;
+      hdr.innerHTML = `<div class="num">?��</div><h3>点灯して�?��警告�??�ランプ�?マ�?ク??</h3>`;
+    }
+    const gridWrap = document.getElementById('warningGridWrap');
+    if (gridWrap) {
+      const container = document.getElementById('warningGrid');
+      gridWrap.parentNode.insertBefore(container, gridWrap);
+      gridWrap.remove();
+    }
+  }
+
+  const meterSec = document.getElementById('meterMessageSection');
+  if (meterSec) {
+    meterSec.classList.remove('accordion');
+    const hdr = meterSec.querySelector('.accordion-header');
+    if (hdr) {
+      hdr.className = 'sec-header';
+      hdr.onclick = null;
+      hdr.innerHTML = `<div class="num">?��</div><h3>表示されたメ�?��ージ・記号</h3>`;
+    }
+    const msgWrap = document.getElementById('meterMessageWrap');
+    if (msgWrap) {
+      const list = document.getElementById('meterCategoryList');
+      msgWrap.parentNode.insertBefore(list, msgWrap);
+      // freeTextカードを�??位置に戻�?
+      const freeCard = msgWrap.querySelector('.glass-card');
+      if (freeCard) {
+        msgWrap.parentNode.insertBefore(freeCard, msgWrap.nextSibling);
+      }
+      msgWrap.remove();
+    }
+  }
+
+  // 画面のチェ�?��ボックス・ラジオ・�?��スト�?力をすべてクリア
+  document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+  document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+  document.querySelectorAll('textarea').forEach(t => t.value = '');
+  
+  updateSummaryNavButtons(); // サマリー画面のナビボタン表示状態を初期状態へ戻�?
+  go('s_api');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Gemini API
+// ══════════════════════════════════════════════════════════════
+async function callGemini(prompt, retries=3) {
+  for (let i=0;i<retries;i++) {
+    const generationConfig = { temperature:0.3, maxOutputTokens:8000 };
+    if (selectedModel.includes('2.5')) {
+      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    }
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`,
+      { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          contents:[{role:'user',parts:[{text:prompt}]}],
+          generationConfig: generationConfig,
+          safetySettings:[
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+          ]
+        })
+      });
+    const data = await res.json();
+    if (data.error) {
+      const msg=data.error.message||'';
+      const isRetryable = res.status === 429 || res.status === 503 || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('demand') || msg.includes('overloaded');
+      if (isRetryable && i<retries-1) {
+        const w=(i+1)*5; showLoading(`API混雑�?制限中...${w}秒後に再試�? (${i+1}/${retries})`);
+        await new Promise(r=>setTimeout(r,w*1000)); continue;
+      }
+      throw new Error(msg||'API Error');
+    }
+    return data;
+  }
+}
+
+async function callGeminiJson(prompt, retries=3) {
+  for (let i=0;i<retries;i++) {
+    const body = {
+      contents:[{role:'user',parts:[{text:prompt}]}],
+      generationConfig:{temperature:0.3,maxOutputTokens:8000,responseMimeType:'application/json'},
+      safetySettings:[
+        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+      ]
+    };
+    if (selectedModel.includes('2.5')) {
+      body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    }
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`,
+      { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }
+    );
+    const data = await res.json();
+    console.log('[GeminiJson] response:', JSON.stringify(data).substring(0,800));
+    if (data.error) {
+      const msg=data.error.message||'';
+      const isRetryable = res.status === 429 || res.status === 503 || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('demand') || msg.includes('overloaded');
+      if (isRetryable && i<retries-1) {
+        const w=(i+1)*5; showLoading(`API混雑�?制限中...${w}秒後に再試�? (${i+1}/${retries})`);
+        await new Promise(r=>setTimeout(r,w*1000)); continue;
+      }
+      throw new Error(msg||'API Error');
+    }
+    let raw='';
+    try {
+      const parts=data.candidates[0].content.parts;
+      for (const p of parts) { if(p.thought)continue; if(p.text)raw+=p.text; }
+    } catch(e) { throw new Error('APIレスポンスが不正で�?'); }
+    if (!raw.trim()) throw new Error('AIから応答がありませんでした');
+
+    // 3段階パース
+    try { return JSON.parse(raw); } catch(e){}
+    const c = raw.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+    try { return JSON.parse(c); } catch(e){}
+    const m = c.match(/\{[\s\S]*\}/);
+    if (m) { try { return JSON.parse(m[0]); } catch(e){} }
+
+    console.error('[GeminiJson] parse failed:', raw);
+    throw new Error('AIの応答を解析できませんでした。も�?��度お試しく�?さい�?');
+  }
+}
+// ══════════════════════════════════════════════════════════════
+//  Service Worker 登録
+// ══════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('[SW] registered:', reg.scope))
+      .catch(err => console.warn('[SW] registration failed:', err));
+  });
+}
+</script>
+</body>
+</html>

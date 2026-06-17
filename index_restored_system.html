@@ -1,0 +1,53 @@
+import os
+import json
+
+log_dir = r"C:\Users\a01533\.gemini\antigravity\brain\1e2bf7cd-d001-407d-bb14-0f179fc61d90\.system_generated\logs"
+files_to_check = ["transcript_full.jsonl", "transcript.jsonl"]
+
+largest_content = ""
+largest_step = -1
+largest_file = ""
+
+for filename in files_to_check:
+    filepath = os.path.join(log_dir, filename)
+    if not os.path.exists(filepath):
+        continue
+    print(f"Checking {filename}...")
+    with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                data = json.loads(line)
+            except Exception:
+                continue
+            
+            # Let's inspect the entire dict to see if there is any tool response content
+            # JSONL steps have fields like 'content' (for assistant text) or tool responses.
+            # In Gemini coding environment logs, system step output is usually in 'content'
+            # but let's do a recursive search for strings that look like index.html.
+            
+            def check_val(val):
+                global largest_content, largest_step, largest_file
+                if isinstance(val, str) and "s_complaint" in val and "s_diagnosis" in val:
+                    # Exclude corrupted text
+                    if "縺" not in val[:1000] and len(val) > len(largest_content):
+                        largest_content = val
+                        largest_step = data.get("step_index", "unknown")
+                        largest_file = filename
+                elif isinstance(val, dict):
+                    for k, v in val.items():
+                        check_val(v)
+                elif isinstance(val, list):
+                    for item in val:
+                        check_val(item)
+            
+            check_val(data)
+
+if largest_content:
+    dest = r"c:\Users\a01533\OneDrive - CMC Corporation\AI作業用\振動異音問診ツール\deploy\index_restored_system.html"
+    with open(dest, "w", encoding="utf-8") as out:
+        out.write(largest_content)
+    print(f"Success! Extracted index.html content from step {largest_step} in {largest_file}. Length: {len(largest_content)} bytes.")
+else:
+    print("No clean large index.html content found in logs.")

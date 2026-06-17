@@ -1,0 +1,143 @@
+</div>
+</div>
+
+<!-- ===== Screen 6: 車両診断 (s_diagnosis) ===== -->
+<div id="s_diagnosis" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper5"></div>
+  <h2 class="page-title">🔍 車両診断（データ裏取り・物理点検）</h2>
+  <p class="page-sub">実車の物理的な状態と、診断機から得られるデータログの確認を行います</p>
+  
+  <!-- 診断① 物理点検 -->
+  <div class="glass-card" style="margin-bottom:1rem">
+    <div class="sec-header">
+      <div class="num">1</div>
+      <h3>診断①：物理点検（目視点検）</h3>
+    </div>
+    <div style="font-size:0.88rem; line-height:1.6; color:var(--text); display:flex; flex-direction:column; gap:0.6rem;">
+      <div style="padding:0.7rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+        <strong>🔹 センサ表面の目視確認</strong>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">センサ表面に傷や割れ、および明らかな汚れの残り（乾いた泥など）がないか確認します。</p>
+      </div>
+      <div style="padding:0.7rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+        <strong>🔹 センサの取付状態の確認</strong>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">センサステーの曲がりや、バンパーのズレ・浮きによって検知方向がずれていないか物理的に裏取りを行います。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 診断機でのデータ裏取り -->
+  <div class="glass-card" style="margin-bottom:1rem">
+    <div class="sec-header">
+      <div class="num">2</div>
+      <h3>診断機でデータ裏取り（ダイアグ・挙動ログ）</h3>
+    </div>
+    <div style="text-align:center; padding:1.2rem 0;" id="diagInitialSection">
+      <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1rem;">OBD-IIコネクタに診断機を接続し、車両ECUからDTC（ダイアグコード）とRoB（車両挙動データ）を読み取ります。</p>
+      <button class="btn btn-primary" id="diagStartBtn" onclick="startDiagnosisRead()">🔌 診断機接続後、読み取り開始</button>
+    </div>
+    
+    <!-- ローディング表示 -->
+    <div style="display:none; text-align:center; padding:1.5rem 0;" id="diagLoadingSection">
+      <div style="width:30px; height:30px; border:3px solid var(--glass-border); border-top-color:var(--primary); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 0.8rem;"></div>
+      <p style="font-size:0.83rem; color:var(--primary); animation:pulse 1.5s ease-in-out infinite;">車両ECUと通信中... DTC/RoBデータを取得しています</p>
+    </div>
+    
+    <!-- 診断結果データ -->
+    <div id="diagResultSection" style="display:none; font-size:0.85rem; line-height:1.6;">
+      <div style="padding:0.8rem; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.2); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-low" style="background:rgba(16, 185, 129, 0.2); color:#10b981; border-color:rgba(16, 185, 129, 0.3); margin-bottom:0.4rem;">DTC (ダイアグコード)</span>
+        <div style="font-weight:600; font-size:0.95rem; color:#10b981;">✅ 正常（故障コードの出力なし）</div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.2rem;">恒久的な電気的断線や内部故障コードは記録されていません。</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--surface2); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.75rem;">
+        <span class="badge badge-mid" style="margin-bottom:0.4rem;">RoB (車両挙動データ)</span>
+        <div style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:0.2rem;">
+          <span style="font-family:monospace; font-weight:700; font-size:1rem; color:var(--warn);">[X20C6]</span>
+          <span style="font-weight:600; font-size:0.88rem;">ウルトラソニックセンサ (フロントコーナ右) 一時使用不可 - 環境要因</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim);">センサ通信の一時的な遮蔽・機能低下の履歴が車両ログに記録されています。</p>
+      </div>
+
+      <div style="padding:0.8rem; background:var(--primary-dim); border:1px solid rgba(59, 130, 246, 0.25); border-radius:8px;">
+        <span class="badge badge-high" style="background:var(--primary-dim); color:var(--primary); border-color:rgba(59, 130, 246, 0.3); margin-bottom:0.4rem;">タイムスタンプ照合</span>
+        <div style="font-weight:600; font-size:0.9rem; color:#60a5fa; display:flex; align-items:center; gap:0.3rem;">🎯 問診の不具合発生日時と完全に一致</div>
+        <div style="margin-top:0.3rem; padding:0.4rem; background:rgba(0,0,0,0.2); border-radius:4px; font-family:monospace; font-size:0.8rem; color:var(--text-dim);">
+          - 問診回答の発生日時：<span style="color:#60a5fa;" id="diagIntakeTime">2週間前の日曜日、14時頃</span><br>
+          - 車両RoBの記録日時：<span style="color:#60a5fa;" id="diagRobTime">2週間前の日曜日 14:00</span>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:0.3rem;">お客様が警告灯点灯（泥はね）を体感した時刻と、ECUが一時使用不可を検知した時刻が一致し、不具合の因果関係が裏付けられました。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 診断② 結論 -->
+  <div class="glass-card" id="diagStep2Section" style="margin-bottom:1rem; display:none;">
+    <div class="sec-header">
+      <div class="num">3</div>
+      <h3>診断②：タイミング照合の結論</h3>
+    </div>
+    <div style="font-size:0.85rem; line-height:1.6; color:var(--text);">
+      <p style="padding:0.75rem; background:rgba(16, 185, 129, 0.08); border-left:3px solid var(--accent); border-radius:4px;">
+        RoBに記録されている「センサ通信異常/遮蔽」の日時データが、問診で聞き出した「お客様が発生・解消を体感したタイミング」と完全に一致することを確認しました。これにより、<strong>センサの物理的破損ではなく、一時的な付着物（泥はね）が原因である</strong>と確定診断しました。
+      </p>
+    </div>
+  </div>
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_summary')">← サマリーに戻る</button>
+    <button class="btn btn-accent" style="flex:1" id="goToServiceBtn" onclick="go('s_service')" disabled>🔧 整備へ →</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== Screen 7: 整備完了 (s_service) ===== -->
+<div id="s_service" class="screen">
+<div class="content-wrap">
+  <div class="stepper" id="stepper6"></div>
+  <h2 class="page-title">🔧 整備・修理完了（結果のご説明）</h2>
+  <p class="page-sub">診断で確定した原因に基づき、物理的な処置とお客様への納得のいく説明を行います</p>
+  
+  <!-- 整備内容 -->
+  <div class="glass-card" style="margin-bottom:1rem">
+    <div class="sec-header">
+      <div class="num">🛠️</div>
+      <h3>整備内容</h3>
+    </div>
+    <div style="font-size:0.88rem; line-height:1.6; color:var(--text); display:flex; flex-direction:column; gap:0.6rem;">
+      <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+        <strong>🔧 整備①：センサ表面の清掃</strong>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">フロント右コーナーセンサの表面に付着していた乾いた泥などの汚れをきれいに清掃・除去します。</p>
+      </div>
+      <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+        <strong>🔧 整備②：現車での作動確認</strong>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">清掃後、システムに異常がないこと、および警告灯やメッセージが消灯し、障害物検知機能が正常に作動することの最終チェックを行います。</p>
+      </div>
+      <div style="padding:0.75rem; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border)">
+        <strong>💬 整備③：お客様へのメカニズム説明</strong>
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.25rem;">取扱説明書に記載されている「作動制限・センサの遮蔽」のページをお客様と一緒に見ながら、雨天時の泥はねによる一時的な機能停止のメカニズムを解説し、製品異常ではないことをご説明します。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 成果 -->
+  <div class="glass-card" style="margin-bottom:1rem; border-color:rgba(16, 185, 129, 0.3);">
+    <div class="sec-header" style="border-bottom-color:rgba(16, 185, 129, 0.2);">
+      <div class="num" style="background:var(--accent);">✓</div>
+      <h3 style="color:var(--accent);">成果</h3>
+    </div>
+    <div style="font-size:0.88rem; line-height:1.6; color:var(--text); padding:0.5rem 0.2rem;">
+      <p style="font-weight:500; font-size:0.95rem; margin-bottom:0.4rem; color:var(--accent);">✨ 追加の部品交換なし（工賃のみ）での修理完了</p>
+      <p style="font-size:0.83rem; color:var(--text-dim);">データ裏取りに基づいた丁寧な説明により、お客様の不安を完全に解消。不要な部品交換が発生しないため、お客様にもご納得いただいた上で迅速に引き渡しが完了しました。</p>
+    </div>
+  </div>
+
+  <div class="nav-bar" style="margin-top:1.5rem">
+    <button class="btn btn-secondary" onclick="go('s_diagnosis')">← 診断に戻る</button>
+    <button class="btn btn-primary" style="flex:1" onclick="resetAll()">🔄 新しい問診をはじめる</button>
+  </div>
+</div>
+</div>
+
+<script>

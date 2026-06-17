@@ -1,0 +1,58 @@
+Created At: 2026-06-12T04:59:42Z
+Completed At: 2026-06-12T04:59:50Z
+
+				The command completed successfully.
+				Output:
+				=== renderSteppers implementation ===
+function renderSteppers(current) {
+  const steps = getSteps();
+  const idx = steps.findIndex(s => s.id === current);
+  const html = steps.map((s, i) => {
+    const cls = i < idx ? 'step done' : i === idx ? 'step active' : 'step';
+    const dot = i < idx ? '✓' : s.n;
+    const line = i < steps.length - 1
+      ? `<div class="step-line${i < idx ? ' done' : ''}"></div>` : '';
+    return `<div class="${cls}"><div class="step-dot">${dot}</div><div class="step-label">${s.label}</div></div>${line}`;
+  }).join('');
+  document.querySelectorAll('[id^="stepper"]').forEach(el => el.innerHTML = html);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Screen 1: 初期化
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const sk = localStorage.getItem('monshin_api_key');
+  if (sk) document.getElementById('apiKeyInput').value = sk;
+  const sm = localStorage.getItem('monshin_model');
+  if (sm) {
+    let fallbackModel = sm;
+    if (sm === 'gemini-2.0-flash') fallbackModel = 'gemini-2.5-flash';
+    if (sm === 'gemini-1.5-flash' || sm === 'gemini-1.5-flash-latest') fallbackModel = 'gemini-1.5-flash-002';
+    docume
+
+=== getSteps implementation ===
+function getSteps() {
+  const showMeterScreen = (hasMeterDisplay() && meterMessages.length > 0) || (hasWarningDisplay() && warningLights.length > 0);
+  const steps = [
+    { id:'s_complaint', label:'ご用命入力', n:'1' },
+    { id:'s_intake',    label:'共通問診',  n:'2' },
+  ];
+  let n = 3;
+  if (showMeterScreen) {
+    steps.push({ id:'s_meter', label:'表示特定', n: String(n++) });
+  }
+  steps.push({ id:'s_deepdive', label:'深掘り問診', n: String(n++) });
+  steps.push({ id:'s_summary',  label:'サマリー', n: String(n++) });
+  
+  // デモ1またはデモ2のときのみ「診断」「整備」を追加
+  const isDemo1or2 = isDemoMode && !isDemoMode3;
+  if (isDemo1or2) {
+    steps.push({ id:'s_diagnosis', label:'車両診断', n: String(n++) });
+    steps.push({ id:'s_service',   label:'整備完了', n: String(n++) });
+  }
+  
+  return steps;
+}
+
+function renderSteppers(curre
+

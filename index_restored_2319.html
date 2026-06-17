@@ -1,0 +1,34 @@
+import os
+import json
+
+log_dir = r"C:\Users\a01533\.gemini\antigravity\brain\1e2bf7cd-d001-407d-bb14-0f179fc61d90\.system_generated\logs"
+transcript_path = os.path.join(log_dir, "transcript_full.jsonl")
+
+# We want to find matches that contain large portions of HTML code
+# e.g., lines containing "s_diagnosis" and "s_complaint" and not corrupted.
+
+matches = []
+
+with open(transcript_path, "r", encoding="utf-8", errors="ignore") as f:
+    for line_num, line in enumerate(f):
+        if not line.strip():
+            continue
+        try:
+            data = json.loads(line)
+        except Exception:
+            continue
+        
+        # Check if the line has content related to HTML
+        # Look for typical keywords of index.html
+        content_str = json.dumps(data)
+        if "s_complaint" in content_str and "s_diagnosis" in content_str and "intakeAnswers" in content_str:
+            # We found a step containing HTML or JavaScript code!
+            # Let's see what keys are in this step
+            step_index = data.get("step_index", "unknown")
+            step_type = data.get("type", "unknown")
+            print(f"Step {step_index} (Type: {step_type}) contains matching content.")
+            
+            # Let's save a summary or snippet to inspect
+            matches.append((step_index, step_type, len(content_str), data))
+
+print(f"Found {len(matches)} potential steps.")
