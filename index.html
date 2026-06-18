@@ -626,6 +626,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="stepper" id="stepper5"></div>
   <h2 class="page-title">🔍 車両診断（データ裏取り・物理点検）</h2>
   <p class="page-sub">実車の物理的な状態と、診断機から得られるデータログの確認を行います</p>
+  <div style="text-align: center; margin-bottom: 1rem; margin-top: -0.8rem;">
+    <a href="#" style="font-size: 0.8rem; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.open('./logic_diagnosis.html', '_blank')">💡 この画面のAI判定ロジックを見る</a>
+  </div>
   
   <!-- 診断① 物理点検 -->
   <div class="glass-card" style="margin-bottom:1rem">
@@ -763,11 +766,20 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       </div>
 
       <div style="padding:0.8rem; background:var(--surface2); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.75rem;">
-        <span class="badge badge-high" style="background:var(--primary-dim); color:var(--primary); border-color:rgba(59, 130, 246, 0.3); margin-bottom:0.4rem;">同様不具合の修理実績（直近1年）</span>
-        <div style="font-size:0.8rem; color:var(--text); display:flex; flex-direction:column; gap:0.25rem;">
-          <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.2rem;"><span>🔹 センサー本体内部不具合（接触不良含む）</span><strong style="color:var(--accent);">5件</strong></div>
-          <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.2rem;"><span>🔹 ハーネス・コネクタ接続不良</span><strong style="color:var(--accent);">2件</strong></div>
-          <div style="display:flex; justify-content:space-between;"><span>🔹 コンピュータ（ECU）異常</span><strong style="color:var(--accent);">1件</strong></div>
+        <span class="badge badge-high" style="background:var(--primary-dim); color:var(--primary); border-color:rgba(59, 130, 246, 0.3); margin-bottom:0.4rem;">推奨点検手順（過去実績・作業性・リスク統合評価）</span>
+        <div style="font-size:0.8rem; color:var(--text); display:flex; flex-direction:column; gap:0.4rem; margin-top:0.3rem;">
+          <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.2rem; align-items: center;">
+            <span><strong>1. 部位:</strong> ハーネス・コネクタ / <strong>状態:</strong> 接触不良</span>
+            <span style="font-size:0.75rem; color:var(--text-dim);">過去実績: <strong style="color:var(--accent); font-size:0.8rem;">2件</strong></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.2rem; align-items: center;">
+            <span><strong>2. 部位:</strong> センサ / <strong>状態:</strong> 内部不良</span>
+            <span style="font-size:0.75rem; color:var(--text-dim);">過去実績: <strong style="color:var(--accent); font-size:0.8rem;">5件</strong></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items: center;">
+            <span><strong>3. 部位:</strong> コンピュータ / <strong>状態:</strong> 内部不良</span>
+            <span style="font-size:0.75rem; color:var(--text-dim);">過去実績: <strong style="color:var(--accent); font-size:0.8rem;">1件</strong></span>
+          </div>
         </div>
       </div>
 
@@ -2986,7 +2998,7 @@ async function callGeminiJson(prompt, retries=3) {
 // ══════════════════════════════════════════════════════════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=4.20')
+    navigator.serviceWorker.register('./sw.js?v=4.21')
       .then(reg => console.log('[SW] registered:', reg.scope))
       .catch(err => console.warn('[SW] registration failed:', err));
   });
