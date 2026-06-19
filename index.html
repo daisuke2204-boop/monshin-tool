@@ -94,6 +94,33 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .step-line{width:30px;height:2px;background:var(--glass-border);margin:0 .1rem}
 .step.done+.step-line,.step-line.done{background:var(--accent)}
 
+/* クリック可能なステップのホバー効果 */
+.step.clickable {
+  cursor: pointer;
+}
+.step.clickable:hover .step-dot {
+  transform: scale(1.08);
+  box-shadow: 0 0 10px var(--primary-dim);
+}
+.step.clickable:hover .step-label {
+  color: var(--text);
+}
+
+/* 到達済みで戻ったため、現在地より後ろにあるステップのスタイル */
+.step.visited .step-dot {
+  border-color: rgba(59, 130, 246, 0.6);
+  color: rgba(226, 232, 240, 0.8);
+  background: rgba(59, 130, 246, 0.1);
+}
+.step.visited .step-label {
+  color: rgba(226, 232, 240, 0.8);
+}
+
+/* 到達済みの接続線のスタイル */
+.step-line.visited {
+  background: rgba(59, 130, 246, 0.4);
+}
+
 /* ─── analysis card ─── */
 .fault-item{display:flex;align-items:flex-start;gap:.7rem;padding:.7rem .9rem;border-radius:10px;background:var(--surface2);border:1px solid var(--glass-border);margin-bottom:.4rem}
 .fault-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
@@ -430,7 +457,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <div id="s_api" class="screen active center">
 <div class="content-wrap" style="max-width:460px;text-align:center">
   <div style="font-size:2.6rem;margin-bottom:.3rem">🔧</div>
-  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v3.3</span></h1>
+  <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.25rem;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent">故障診断 問診サポートツール <span style="font-size:0.9rem; font-weight:normal; vertical-align:middle; color:var(--text-dim)">v3.4</span></h1>
   <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.8rem;line-height:1.6">AIが深掘り質問を自動生成し<br>再現可能なレベルの問診をサポートします</p>
   <div class="glass-card" style="text-align:left">
     <div class="input-group">
@@ -984,6 +1011,7 @@ const INTAKE_OTHER = [
 //  状態
 // ══════════════════════════════════════════════════════════════
 let apiKey = '', selectedModel = 'gemini-2.5-flash';
+let reachedStepIds = new Set(['s_complaint']); // 到達済みステップIDの保持
 let complaint = '';
 let intakeAnswers = {};   // 共通問診の回答
 let intakeOtherTexts = {}; // 共通問診の「その他」自由記述テキスト
@@ -1091,6 +1119,12 @@ function go(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     target.classList.add('active');
     window.scrollTo(0, 0);
+    
+    // 到達済みステップIDに記録
+    if (typeof reachedStepIds !== 'undefined' && reachedStepIds.add) {
+      reachedStepIds.add(id);
+    }
+    
     renderSteppers(id);
   } catch (err) {
     showToast(`画面遷移エラー (${id}): ` + err.message);
@@ -1191,16 +1225,44 @@ function getSteps() {
   return steps;
 }
 
+function goToStep(stepId) {
+  if (typeof reachedStepIds !== 'undefined' && reachedStepIds.has(stepId)) {
+    go(stepId);
+  }
+}
+
 function renderSteppers(current) {
   try {
     const steps = getSteps();
     const idx = steps.findIndex(s => s.id === current);
     const html = steps.map((s, i) => {
-      const cls = i < idx ? 'step done' : i === idx ? 'step active' : 'step';
+      // 過去に到達済みかどうか
+      const isReached = typeof reachedStepIds !== 'undefined' && reachedStepIds.has(s.id);
+      
+      // クラスの決定
+      // i < idx: 通過完了(done), i === idx: 現在位置(active), i > idx かつ到達済み: visited, 未到達: step
+      const cls = i < idx ? 'step done' : i === idx ? 'step active' : isReached ? 'step visited' : 'step';
+      
       const dot = i < idx ? '✓' : s.n;
+      
+      // 接続線のクラス決定
+      // 次のステップが存在し、かつ次のステップも到達済みの場合は visited にする
+      const nextStep = steps[i+1];
+      const isNextReached = nextStep && typeof reachedStepIds !== 'undefined' && reachedStepIds.has(nextStep.id);
+      const lineClass = i < idx 
+        ? 'step-line done' 
+        : (isNextReached ? 'step-line visited' : 'step-line');
+      
       const line = i < steps.length - 1
-        ? `<div class="step-line${i < idx ? ' done' : ''}"></div>` : '';
-      return `<div class="${cls}"><div class="step-dot">${dot}</div><div class="step-label">${s.label}</div></div>${line}`;
+        ? `<div class="${lineClass}"></div>` : '';
+      
+      // クリック可能判定（過去に到達済み、かつ現在の画面ではない）
+      const isClickable = isReached && s.id !== current;
+      const clickAttr = isClickable 
+        ? ` onclick="goToStep('${s.id}')" class="${cls} clickable"` 
+        : ` class="${cls}"`;
+      
+      return `<div${clickAttr}><div class="step-dot">${dot}</div><div class="step-label">${s.label}</div></div>${line}`;
     }).join('');
     document.querySelectorAll('[id^="stepper"]').forEach(el => el.innerHTML = html);
   } catch (err) {
@@ -1272,6 +1334,10 @@ async function initApp() {
 }
 
 function startDemoMode() {
+  if (typeof reachedStepIds !== 'undefined' && reachedStepIds.clear) {
+    reachedStepIds.clear();
+    reachedStepIds.add('s_complaint');
+  }
   isDemoMode = true;
   apiKey = 'demo-key';
   selectedModel = 'gemini-2.5-flash';
@@ -1309,6 +1375,10 @@ function startDemoMode() {
 }
 
 function startDemoMode2() {
+  if (typeof reachedStepIds !== 'undefined' && reachedStepIds.clear) {
+    reachedStepIds.clear();
+    reachedStepIds.add('s_complaint');
+  }
   isDemoMode2 = true;
   isDemoMode = true;
   apiKey = 'demo-key';
@@ -1349,6 +1419,10 @@ function startDemoMode2() {
 }
 
 function startDemoMode3() {
+  if (typeof reachedStepIds !== 'undefined' && reachedStepIds.clear) {
+    reachedStepIds.clear();
+    reachedStepIds.add('s_complaint');
+  }
   isDemoMode3 = true;
   isDemoMode = true;
   apiKey = 'demo-key';
@@ -2352,31 +2426,15 @@ async function generateSummary() {
 走行中、メーターにクリアランスソナーOFF表示灯と警告文（運転支援システム関連）が点灯。未舗装路走行後に消灯する症状が数回発生。
 
 ■ 再現手順（重要！）
-1. エンジン暖機後、一般道（未舗装路）を30〜60km/hで定速走行。
-2. 荒れた路面（砂利道やデコボコ道）を走行し、振動を与える。
-3. メーター内のクリアランスソナーOFF表示灯と警告文の点灯有無を確認。
 
 ■ 推定される不具合と根拠
-- クリアランスソナーシステムの異常
-  * 根拠：クリアランスソナーOFF表示灯点灯、荒れた道での発生、出たり消えたりする症状。
-- 運転支援システム（センサー・カメラ）の一時的な機能停止
-  * 根拠：運転支援システム関連の警告文表示、荒れた道での発生、出たり消えたりする症状。
-- 配線やコネクタの接触不良
-  * 根拠：荒れた道での発生、振動による症状の出没。
 
 ■ きっかけ・原因の推定
 - 荒れた路面走行時の振動
 - センサーまたは配線への一時的な負荷
 
-■ 再発防止アドバイス
-- 未舗装路や荒れた道の走行時は、速度を控えめにしてください。
-- 症状が頻繁に発生する場合は、早めの点検をお勧めします。
-
 ■ エンジニアへの申し送り
-- 診断機を接続し、DTC（ダイアグコード）およびRoB（車両挙動データ）を読み取って問診内容との整合性を確認してください。
-- 症状再現時は加振点検（配線揺すり等）を試みてください。
-- 運転支援システム関連のセンサー・配線・コネクタを中心に点検してください。
-- ADAS関連部品の脱着・交換が予想される場合、エーミング（校正）作業が必要です。`;
+- 診断機を接続し、DTC（ダイアグコード）およびRoB（車両挙動データ）を読み取って問診内容との整合性を確認してください。`;
 
         renderSummary(summaryText);
         go('s_summary');
@@ -2391,9 +2449,6 @@ async function generateSummary() {
 雨天時、対向車からの泥はね直後、運転席側フロントバンパー付近のクリアランスソナーが一時的に機能停止し、メーターに警告文とクリアランスソナーOFF表示灯が点灯。しばらく走行後に消灯。
 
 ■ 再現手順（重要！）
-1. 雨天時、一般道（荒れた道）を30〜60km/hで定速走行。
-2. 対向車とすれ違い、運転席側フロントバンパーに泥が付着する状況を再現。
-3. メーターの警告文とクリアランスソナーOFF表示灯の点灯有無を確認。
 
 ■ 推定される不具合と根拠
 - クリアランスソナーの一時的な機能停止：クリアランスソナーOFF表示灯点灯、泥はね直後の発生。
@@ -2543,10 +2598,11 @@ function renderSummary(text) {
         if (isDemoMode) {
           if (isDemoMode3) {
             // デモ3用の画像
-            if (title.includes('症状の概要')) {
-              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="症状の概要"></div>';
+            if (title.includes('再現手順')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="再現手順"></div>';
             } else if (title.includes('推定される不具合と根拠')) {
               imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_03.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="推定される不具合と根拠"></div>';
+              imgHtml += '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_0301.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="推定される不具合と根拠2"></div>';
             } else if (title.includes('再発防止アドバイス')) {
               imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/demo3_05.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="再発防止アドバイス"></div>';
             } else if (title.includes('エンジニアへの申し送り')) {
@@ -2554,8 +2610,8 @@ function renderSummary(text) {
             }
           } else {
             // デモ1・2用の画像
-            if (title.includes('症状の概要')) {
-              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="症状の概要"></div>';
+            if (title.includes('再現手順')) {
+              imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/01.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="再現手順"></div>';
             } else if (title.includes('推定される不具合と根拠')) {
               imgHtml = '<div style="margin-top:0.8rem;"><img src="./summary_image/03.png" style="max-width:100%; height:auto; border-radius:8px; border:1px solid var(--glass-border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="推定される不具合と根拠"></div>';
             } else if (title.includes('再発防止アドバイス')) {
@@ -2811,6 +2867,11 @@ function resetAll() {
   isDiagRead = false; // 診断ステートをリセット
   isDemo3ReproRun = false; // デモ3走行再現テスト実行フラグをリセット
   
+  if (typeof reachedStepIds !== 'undefined' && reachedStepIds.clear) {
+    reachedStepIds.clear();
+    reachedStepIds.add('s_complaint');
+  }
+  
   document.getElementById('complaintInput').value='';
   const meterFree = document.getElementById('meterFreeText');
   if (meterFree) meterFree.value = '';
@@ -2998,7 +3059,7 @@ async function callGeminiJson(prompt, retries=3) {
 // ══════════════════════════════════════════════════════════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=4.21')
+    navigator.serviceWorker.register('./sw.js?v=4.28')
       .then(reg => console.log('[SW] registered:', reg.scope))
       .catch(err => console.warn('[SW] registration failed:', err));
   });
